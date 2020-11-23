@@ -1,0 +1,39 @@
+*{ margin: 0; padding: 0;font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;}
+body{min-width: 1500px;}
+.body{padding: 10px 10px;}
+#content{height: 500px}
+#nav{height: 40px;line-height: 40px}
+.header-btn{height: 28px;font-size: 12px;}
+#header{height: 30px;width: 100%}
+#header-left{float: left;height:30px;width: 75%}
+#header-right{float: left;height:10px;}
+
+#mouse-right{width: 100px;position: absolute;display: none;background: white;box-shadow: 0 1px 20px rgba(0,0,0,.2);border:2px;border-radius:4px;}
+#mouse-right div{padding: 5px 10px;}
+#mouse-right div a{text-decoration: none}
+#mouse-right div:hover{background: #0e9aef;color: white;cursor: pointer}
+
+#item-header{background: #f8f8f9;height: 40px;line-height: 40px;border-bottom: 2px solid #f6f6f6;}
+.item{height: 45px;line-height: 45px;border-bottom: 2px solid #f6f6f6;}
+.item:hover{background-color: #f8f8f9;cursor: pointer}
+.item-check{width: 40px;float: left;}
+.item-name{width: 60%;float: left;}
+.item-size{width: 15%;float: left;}
+.item-date{width: 20%;float: left;}
+
+#update-info{height: 400px;width: 600px;position: absolute;bottom: 0;right: 20px;z-index: 1000;background: white;display: none;}
+#update-header{height: 50px;border-bottom: 2px solid #f6f6f6;}
+#update-header-title{height: 50px;width: 520px;float: left;font-size: 18px;line-height: 50px}
+#update-header-close{height: 50px;width: 40px;float: left;line-height: 50px}
+#update-list{height: 330px; width: 580px;position: absolute;overflow: auto}
+.progress-info{position: absolute;width:560px;height:40px;}
+.progress-name{height: 40px;line-height: 40px;width: 200px;float:left;padding-left: 10px;}
+.progress-size{height: 40px;line-height: 40px;width: 100px;float:left;}
+.progress-path{height: 40px;line-height: 40px;width: 150px;float:left;}
+.progress-width{height: 40px;line-height: 40px;width: 50px;float:left;}
+.progress{height:40px;margin-top:5px; width: 560px;}
+
+
+
+.borders{box-shadow: 0 1px 20px rgba(0,0,0,.2);border:2px ;border-radius:4px;padding: 5px 10px}
+.tips{display: none;position: absolute;top: 25%;left: 40%;max-width: 20%;max-height: 50%;padding: 10px;background-color: #95A5A6;z-index: 1002;overflow: auto;}
