@@ -10,6 +10,7 @@ import (
 )
 
 func Launch() {
+
 	loadFilePath(config.FilePath)
 
 	hServer := dhttp.NewHttpServer(config.WebAddr)

@@ -27,23 +27,6 @@ func respResult(w http.ResponseWriter, message string) {
 	}
 }
 
-func respData(w http.ResponseWriter, ok bool, count int, data interface{}) {
-	ret := &fileListResp{
-		Ok: ok,
-	}
-	if ok {
-		diskTotal, diskUsed, diskUsedP := diskUsed()
-		ret.Count = count
-		ret.Items = data
-		ret.DiskUsed = diskUsed
-		ret.DiskTotal = diskTotal
-		ret.DiskUsedP = diskUsedP
-	}
-	if err := json.NewEncoder(w).Encode(ret); err != nil {
-		logger.Errorf(err.Error())
-	}
-}
-
 /***********************************  拉取路径下的所有文件  ****************************************************/
 
 type fileListResp struct {
@@ -63,6 +46,23 @@ type item struct {
 	Date     string `json:"date"`
 }
 
+func respFileList(w http.ResponseWriter, ok bool, count int, data interface{}) {
+	ret := &fileListResp{
+		Ok: ok,
+	}
+	if ok {
+		diskTotal, diskUsed, diskUsedP := diskUsed()
+		ret.Count = count
+		ret.Items = data
+		ret.DiskUsed = diskUsed
+		ret.DiskTotal = diskTotal
+		ret.DiskUsedP = diskUsedP
+	}
+	if err := json.NewEncoder(w).Encode(ret); err != nil {
+		logger.Errorf(err.Error())
+	}
+}
+
 /*
 * 获取目录下文件， 正在上传的文件不显示。
 * path -> 获取文件路径
@@ -77,7 +77,7 @@ func fileList(w http.ResponseWriter, msg interface{}) {
 	info, err := filePtr.findPath(filePath, false)
 	if err != nil {
 		logger.Errorln(err)
-		respData(w, false, 0, nil)
+		respFileList(w, false, 0, nil)
 		return
 	}
 
@@ -93,7 +93,7 @@ func fileList(w http.ResponseWriter, msg interface{}) {
 			}
 		}
 	}
-	respData(w, true, len(data), data)
+	respFileList(w, true, len(data), data)
 }
 
 /***********************************  删除路径下的文件  ****************************************************/

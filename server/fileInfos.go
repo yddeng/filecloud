@@ -78,9 +78,10 @@ func (this *fileInfo) mergeUpload() {
 			logger.Errorln(err)
 			return
 		}
-		_ = os.Remove(partFile)
 		logger.Infof("input %s from %s written %d ", this.AbsPath, partFile, written)
 	}
+
+	this.clearUpload()
 
 	this.FileOk = true
 	this.FileSize = this.Upload.Size
@@ -150,10 +151,6 @@ func (this *fileInfos) remove(parent *fileInfo, name string) error {
 	return nil
 }
 
-func (this *fileInfos) add() {
-
-}
-
 func (this *fileInfos) findPath(filePath string, mkdir bool) (*fileInfo, error) {
 	paths := splitPath(filePath)
 
@@ -205,6 +202,7 @@ func walk(info *fileInfo, f func(file *fileInfo) error) (err error) {
 }
 
 func loadFilePath(filePath string) {
+	_ = os.MkdirAll(config.FilePath, os.ModePerm)
 	sdir, dname := path.Split(filePath)
 	filePtr = &fileInfos{
 		mtx: sync.RWMutex{},
