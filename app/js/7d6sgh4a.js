@@ -264,11 +264,10 @@ function updateFile(path,file) {
             <div id="{4}" class="progress-bar progress-bar-striped" style="width: 0%;"  aria-valuemin="0" aria-valuemax="100"></div>
         </div>`;
 
-    let chunkSize = 1024 * 1024 * 2, // 以每片2MB大小来逐次读取
-        totalSize = file.size,
+    let totalSize = file.size,
         filename = file.name,
         fileAbs = path+"/"+filename,
-        total = Math.ceil(file.size / chunkSize),
+        total = Math.ceil(file.size / sliceSize),
         existBlob = new Map();
 
     console.log(filename,totalSize,total,fileAbs);
@@ -354,8 +353,8 @@ function updateFile(path,file) {
                 while (current < total) {
                     current++;
                     if (!existBlob.has(current.toString())){
-                        let start = chunkSize * (current-1);
-                        let end = chunkSize * current;
+                        let start = sliceSize * (current-1);
+                        let end = sliceSize * current;
                         end = end > totalSize ? totalSize : end;
                         let blob = file.slice(start, end);
 

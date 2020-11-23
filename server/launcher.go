@@ -17,7 +17,8 @@ func Launch() {
 
 	_, root := path.Split(config.FilePath)
 	webAddr := fmt.Sprintf(`var httpAddr = "http://%s/file/";
-var root = "%s";`, config.WebAddr, root)
+var root = "%s";
+var sliceSize = %d*1024*1024;`, config.WebAddr, root, config.SliceSize)
 	err := ioutil.WriteFile(path.Join(config.WebIndex, "js/addr.js"), []byte(webAddr), os.ModePerm)
 	if err != nil {
 		panic(err)
