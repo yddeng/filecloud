@@ -268,10 +268,12 @@ function updateFile(path,file) {
         filename = file.name,
         fileAbs = path+"/"+filename,
         total = Math.ceil(file.size / sliceSize),
-        existBlob = new Map();
+        existBlob = new Map(),
+        lastLoaded = 0;
+
 
     console.log(filename,totalSize,total,fileAbs);
-    function addUpdateInfo() {
+    function addProgress() {
         document.getElementById('update-info').style.display = "block";
         if (!updateInfos.has(fileAbs)) {
             let list = document.getElementById('update-list');
@@ -285,25 +287,33 @@ function updateFile(path,file) {
         }
     }
 
-    function updateInfo(sendCnt,isSend) {
-        if (updateInfos.has(fileAbs)) {
-            let p = (sendCnt*100)/total;
-            let ps = util.format("{0}%",p.toFixed(0));
-            let pWidth = util.format("{0}-width",fileAbs);
-            let pBar = util.format("{0}-bar",fileAbs);
-            if (p === 100) {
-                document.getElementById(pBar).style.width = "0%";
-                if (isSend) {
-                    document.getElementById(pWidth).innerHTML = `<i class="fa fa-check-circle" style="color: #00CC00"></i>`
-                }else {
-                    document.getElementById(pWidth).innerHTML = `<i class="fa fa-check-circle" style="color: #00CC00">秒传</i>`
-                }
-            }else {
-                document.getElementById(pWidth).innerHTML = ps;
-                document.getElementById(pBar).style.width = ps;
+    function setProgress(loaded, isFinished,isNeed) {
+        if (!updateInfos.has(fileAbs)) {
+            return
+        }
+        // 实际上传的数据大小 > 文件大小，此处做修正处理
+        if (loaded > totalSize) {
+            if (isFinished) {
+                loaded = totalSize;
+            } else {
+                loaded = totalSize * 0.9999;
             }
         }
 
+        let progress = (loaded / totalSize * 100).toFixed(1) + '%';
+        let pWidth = util.format("{0}-width",fileAbs);
+        let pBar = util.format("{0}-bar",fileAbs);
+        if (loaded === totalSize){
+            document.getElementById(pBar).style.width = "0%";
+            if (isNeed){
+                document.getElementById(pWidth).innerHTML = `<i class="fa fa-check-circle" style="color: #00CC00"></i>`
+            }else {
+                document.getElementById(pWidth).innerHTML = `<i class="fa fa-check-circle" style="color: #00CC00">秒传</i>`
+            }
+        }else {
+            document.getElementById(pWidth).innerHTML = progress;
+            document.getElementById(pBar).style.width = progress;
+        }
     }
 
     function md5File(file,callback) {
@@ -339,7 +349,7 @@ function updateFile(path,file) {
 
     md5File(file,function (md5) {
         checkFile(md5,function (need,exist) {
-            addUpdateInfo();
+            addProgress();
             if (need){
                 if (exist) {
                     console.log(exist);
@@ -358,6 +368,7 @@ function updateFile(path,file) {
                         end = end > totalSize ? totalSize : end;
                         let blob = file.slice(start, end);
 
+                        let xhr =  new XMLHttpRequest();
                         let fd = new FormData();
                         fd.append('path',path);
                         fd.append('file', blob);
@@ -365,24 +376,31 @@ function updateFile(path,file) {
                         fd.append('current', current.toString());
                         fd.append('md5', md5);
 
-                        util.httpFormData(reqUrl,fd,function (res) {
-                            if (res.ok){
-                                existBlob.set(fd.get("current"),"0");
-                                updateInfo(existBlob.size,true);
-                                if (existBlob.size === total){
-                                    updateFileEnd()
+                        xhr.open("post",reqUrl,true);
+                        xhr.onreadystatechange = function () {
+                            if (xhr.readyState === 4) {
+                                if (xhr.status === 200) {
+                                    existBlob.set(fd.get("current"),"0");
+                                    lastLoaded += sliceSize;
+                                    setProgress(lastLoaded,true,true);
+                                    if (existBlob.size === total){
+                                        updateFileEnd();
+                                    }
+                                } else {
+                                    showTips("网络错误！",1000)
                                 }
-                            }else {
-                                showTips(res.message,2000)
                             }
-                        },function (e) {
-                            showTips("网络错误！",1000)
-                        });
+                        };
+                        xhr.upload.onprogress = function(e) {
+                            let loaded = lastLoaded + e.loaded;
+                            setProgress(loaded,false,true);
+                        };
+                        xhr.send(fd)
                     }
                 }
 
             }else {
-                updateInfo(total,false);
+                setProgress(totalSize,true,false);
                 updateFileEnd();
             }
         })
