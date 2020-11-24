@@ -304,7 +304,7 @@ func fileUpload(w http.ResponseWriter, r *http.Request) {
 	md5 := r.FormValue("md5")
 	current := r.FormValue("current")
 
-	logger.Infoln("fileUpload", filePath, filename, md5, current)
+	logger.Infoln("fileUpload", r.RemoteAddr, filePath, filename, md5, current)
 
 	if filePath == "" || filename == "" || md5 == "" || current == "" {
 		respResult(w, "参数请求错误！")
