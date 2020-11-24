@@ -269,7 +269,7 @@ function updateFile(path,file) {
         fileAbs = path+"/"+filename,
         total = Math.ceil(file.size / sliceSize),
         existBlob = new Map(),
-        lastLoaded = 0;
+        loadedMap = new Map();
 
 
     console.log(filename,totalSize,total,fileAbs);
@@ -287,18 +287,24 @@ function updateFile(path,file) {
         }
     }
 
-    function setProgress(loaded, isFinished,isNeed) {
+    function getProgress() {
+        let loaded = 0;
+        for (let k in loadedMap){
+            loaded += loadedMap.get(k)
+        }
+        return loaded
+    }
+
+    function setProgress(isNeed) {
         if (!updateInfos.has(fileAbs)) {
             return
         }
-        // 实际上传的数据大小 > 文件大小，此处做修正处理
-        if (loaded > totalSize) {
-            if (isFinished) {
-                loaded = totalSize;
-            } else {
-                loaded = totalSize * 0.9999;
-            }
+
+        let loaded = totalSize;
+        if (isNeed){
+            loaded = getProgress()
         }
+
 
         let progress = (loaded / totalSize * 100).toFixed(1) + '%';
         let pWidth = util.format("{0}-width",fileAbs);
@@ -381,8 +387,8 @@ function updateFile(path,file) {
                             if (xhr.readyState === 4) {
                                 if (xhr.status === 200) {
                                     existBlob.set(fd.get("current"),"0");
-                                    lastLoaded += sliceSize;
-                                    setProgress(lastLoaded,true,true);
+                                    loadedMap.set(fd.get("current"),sliceSize);
+                                    setProgress(true);
                                     if (existBlob.size === total){
                                         updateFileEnd();
                                     }
@@ -392,15 +398,15 @@ function updateFile(path,file) {
                             }
                         };
                         xhr.upload.onprogress = function(e) {
-                            let loaded = lastLoaded + e.loaded;
-                            setProgress(loaded,false,true);
+                            loadedMap.set(fd.get("current"),e.loaded);
+                            setProgress(true);
                         };
                         xhr.send(fd)
                     }
                 }
 
             }else {
-                setProgress(totalSize,true,false);
+                setProgress(false);
                 updateFileEnd();
             }
         })
