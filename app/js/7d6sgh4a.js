@@ -355,7 +355,8 @@ function updateFile(path,file) {
                 if (exist) {
                     console.log(exist);
                     for (let key in exist){
-                        existBlob.set(key, key)
+                        existBlob.set(key, key);
+                        loadedMap.set(key,sliceSize);
                     }
                 }
 
