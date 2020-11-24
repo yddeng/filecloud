@@ -287,14 +287,6 @@ function updateFile(path,file) {
         }
     }
 
-    function getProgress() {
-        let loaded = 0;
-        loadedMap.forEach(function (v,k,map) {
-            loaded += v
-        });
-        return loaded
-    }
-
     function setProgress(isNeed,isFinished) {
         if (!updateInfos.has(fileAbs)) {
             return
@@ -302,9 +294,12 @@ function updateFile(path,file) {
 
         let loaded = totalSize;
         if (isNeed){
-            loaded = getProgress();
+            loaded = 0;
+            loadedMap.forEach(function (v,k,map) {
+                loaded += v
+            });
             if (loaded > totalSize){
-                loaded = totalSize * 0.99;
+                loaded = totalSize * 0.999;
             }
         }
 
