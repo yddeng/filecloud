@@ -289,28 +289,33 @@ function updateFile(path,file) {
 
     function getProgress() {
         let loaded = 0;
-        for (let k in loadedMap){
-            loaded += loadedMap.get(k)
-        }
+        loadedMap.forEach(function (v,k,map) {
+            loaded += v
+        });
         return loaded
     }
 
-    function setProgress(isNeed) {
+    function setProgress(isNeed,isFinished) {
         if (!updateInfos.has(fileAbs)) {
             return
         }
 
         let loaded = totalSize;
         if (isNeed){
-            loaded = getProgress()
+            loaded = getProgress();
+            if (loaded > totalSize){
+                loaded = totalSize * 0.99;
+            }
         }
-
 
         let progress = (loaded / totalSize * 100).toFixed(1) + '%';
         let pWidth = util.format("{0}-width",fileAbs);
         let pBar = util.format("{0}-bar",fileAbs);
         if (loaded === totalSize){
             document.getElementById(pBar).style.width = "0%";
+            if (isFinished) {
+                refresh();
+            }
             if (isNeed){
                 document.getElementById(pWidth).innerHTML = `<i class="fa fa-check-circle" style="color: #00CC00"></i>`
             }else {
@@ -348,11 +353,6 @@ function updateFile(path,file) {
         })
     }
 
-    function updateFileEnd() {
-        refresh();
-    }
-
-
     md5File(file,function (md5) {
         checkFile(md5,function (need,exist) {
             addProgress();
@@ -386,12 +386,8 @@ function updateFile(path,file) {
                         xhr.onreadystatechange = function () {
                             if (xhr.readyState === 4) {
                                 if (xhr.status === 200) {
-                                    existBlob.set(fd.get("current"),"0");
-                                    loadedMap.set(fd.get("current"),sliceSize);
-                                    setProgress(true);
-                                    if (existBlob.size === total){
-                                        updateFileEnd();
-                                    }
+                                    loadedMap.set(fd.get("current"),blob.size);
+                                    setProgress(true,true);
                                 } else {
                                     showTips("网络错误！",1000)
                                 }
@@ -399,15 +395,14 @@ function updateFile(path,file) {
                         };
                         xhr.upload.onprogress = function(e) {
                             loadedMap.set(fd.get("current"),e.loaded);
-                            setProgress(true);
+                            setProgress(true,false);
                         };
                         xhr.send(fd)
                     }
                 }
 
             }else {
-                setProgress(false);
-                updateFileEnd();
+                setProgress(false,true);
             }
         })
     });
