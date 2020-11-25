@@ -5,10 +5,11 @@ import (
 )
 
 type Config struct {
-	WebAddr   string `toml:"WebAddr"`
-	WebIndex  string `toml:"WebIndex"`
-	FilePath  string `toml:"FilePath"`
-	SliceSize int    `toml:"SliceSize"`
+	WebAddr          string `toml:"WebAddr"`
+	WebIndex         string `toml:"WebIndex"`
+	FilePath         string `toml:"FilePath"`
+	SliceSize        int    `toml:"SliceSize"`
+	SaveFileMultiple bool   `toml:"SaveFileMultiple"`
 }
 
 var config *Config

@@ -226,20 +226,24 @@ func fileCheck(w http.ResponseWriter, msg interface{}) {
 			FileMD5: req.MD5,
 		}
 
-		files, md5Ok := filePtr.MD5File[req.MD5]
+		files, md5Ok := filePtr.MD5Files[req.MD5]
 		if md5Ok {
-			// 已存在md5文件,直接拷贝
-			if written, err := CopyFile(files[0], absPath); err != nil {
-				logger.Errorln(err)
-				respFileCheck(w, err, false, nil)
-			} else {
-				newInfo.FileOk = true
-				newInfo.FileSize = written
-				newInfo.FileDate = nowFormat()
-				info.FileInfos[newInfo.Name] = newInfo
-				filePtr.addMD5(req.MD5, absPath)
-				respFileCheck(w, nil, false, nil)
+			// 已存在md5文件
+			if config.SaveFileMultiple {
+				// 真实保存,拷贝文件
+				if _, err := CopyFile(files.Ptr[0], absPath); err != nil {
+					logger.Errorln(err)
+					respFileCheck(w, err, false, nil)
+					return
+				}
 			}
+			newInfo.FileOk = true
+			newInfo.FileSize = files.Size
+			newInfo.FileDate = nowFormat()
+			info.FileInfos[newInfo.Name] = newInfo
+			filePtr.addMD5File(newInfo.FileMD5, newInfo)
+			respFileCheck(w, nil, false, nil)
+
 		} else {
 			// 不存在md5文件，新建
 			newInfo.Upload = up
@@ -382,8 +386,20 @@ func fileDownload(w http.ResponseWriter, msg interface{}) {
 		return
 	}
 
+	absPath := file.AbsPath
+	if !config.SaveFileMultiple {
+		// 虚拟保存，修正到真实文件路径
+		md5File_, ok := filePtr.MD5Files[file.FileMD5]
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, "Bad request")
+			return
+		}
+		absPath = md5File_.File
+	}
+
 	//打开文件
-	f, err := os.Open(file.AbsPath)
+	f, err := os.Open(absPath)
 	if err != nil {
 		logger.Errorln(err)
 		w.WriteHeader(http.StatusBadRequest)

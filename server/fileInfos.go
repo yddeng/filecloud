@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -19,7 +18,14 @@ var (
 type fileInfos struct {
 	mtx      sync.RWMutex        `json:"-"`
 	FileInfo *fileInfo           `json:"file_info"`
-	MD5File  map[string][]string `json:"md5_file"` // md5 -> absFilename ,存在相同的md5值直接拷贝
+	MD5Files map[string]*md5File `json:"md_5_files"`
+}
+
+type md5File struct {
+	File string   `json:"file"` // 原始文件
+	Size int64    `json:"file_size"`
+	MD5  string   `json:"md_5"`
+	Ptr  []string `json:"ptr"` // 文件引用
 }
 
 type fileInfo struct {
@@ -38,7 +44,7 @@ type fileInfo struct {
 type upload struct {
 	Size     int64             `json:"size,omitempty"` // 文件有值
 	MD5      string            `json:"md5,omitempty"`  // 文件有值
-	SliceCnt int               `json:"slice_cnt"`      // 文件有值，文件上传时总文件数。 为0时，表示已传输完成。
+	SliceCnt int               `json:"slice_cnt"`      // 文件有值，文件上传时总文件数。
 	UpSlice  map[string]string `json:"up_slice"`       // 文件有值，文件上传时，已经上传的分片
 }
 
@@ -89,51 +95,65 @@ func (this *fileInfo) mergeUpload() {
 	this.FileDate = nowFormat()
 	this.Upload = nil
 
-	filePtr.addMD5(this.FileMD5, this.AbsPath)
-
+	filePtr.addMD5File(this.FileMD5, this)
 }
 
-func (this *fileInfos) addMD5(md5, file string) {
-	files, ok := this.MD5File[md5]
+func (this *fileInfos) addMD5File(md5 string, info *fileInfo) {
+	files, ok := this.MD5Files[md5]
 	if !ok {
-		files = []string{}
+		files = &md5File{
+			File: info.AbsPath,
+			MD5:  info.FileMD5,
+			Size: info.FileSize,
+			Ptr:  []string{},
+		}
+		this.MD5Files[md5] = files
 	}
-	files = append(files, file)
-	this.MD5File[md5] = files
+	files.Ptr = append(files.Ptr, info.AbsPath)
 }
 
-func (this *fileInfos) removeMD5(md5, file string) {
+func (this *fileInfos) removeMD5File(md5, ptr string) {
 	// 删除md5指向
-	files, ok := this.MD5File[md5]
+	files, ok := this.MD5Files[md5]
 	if ok {
 		idx := -1
-		for i := 0; i < len(files); i++ {
-			if files[i] == file {
+		for i := 0; i < len(files.Ptr); i++ {
+			if files.Ptr[i] == ptr {
 				idx = i
 				break
 			}
 		}
 		if idx != -1 {
-			files = append(files[:idx], files[idx+1:]...)
-			if len(files) > 0 {
-				this.MD5File[md5] = files
-			} else {
-				delete(this.MD5File, md5)
+			files.Ptr = append(files.Ptr[:idx], files.Ptr[idx+1:]...)
+			if len(files.Ptr) == 0 {
+				delete(this.MD5Files, md5)
 			}
 		}
 	}
 }
 
+// 文件删除，
 func (this *fileInfos) remove(parent *fileInfo, name string) error {
 	info, ok := parent.FileInfos[name]
 	if !ok {
 		return fmt.Errorf("%s 文件不存在", name)
 	}
 
+	delMd5 := map[string]struct{}{} // 待删除的md5文件，源文件
+
 	// 遍历文件
 	if err := walk(info, func(file *fileInfo) error {
+		if !config.SaveFileMultiple {
+			if md5File_, ok := filePtr.MD5Files[file.FileMD5]; ok {
+				if md5File_.File == file.AbsPath {
+					// 此文件为源文件
+					delMd5[file.FileMD5] = struct{}{}
+				}
+			}
+		}
+
 		// 删除md5指向
-		this.removeMD5(file.FileMD5, file.AbsPath)
+		this.removeMD5File(file.FileMD5, file.AbsPath)
 		// 清理上传的分片
 		file.clearUpload()
 
@@ -141,12 +161,26 @@ func (this *fileInfos) remove(parent *fileInfo, name string) error {
 	}); err != nil {
 		return err
 	}
+
+	// 删除info
+	delete(parent.FileInfos, info.Name)
+
+	if !config.SaveFileMultiple {
+		// 如果文件夹中包含源文件需要拷贝到他处
+		for md5 := range delMd5 {
+			md5File_, ok := filePtr.MD5Files[md5]
+			if ok {
+				// 还存在他处引用
+				_, _ = CopyFile(md5File_.File, md5File_.Ptr[0])
+				md5File_.File = md5File_.Ptr[0]
+			}
+		}
+	}
+
 	// 删除文件、文件夹
 	if err := os.RemoveAll(info.AbsPath); err != nil {
 		logger.Errorln(err)
 	}
-	// 删除info
-	delete(parent.FileInfos, info.Name)
 
 	return nil
 }
@@ -213,7 +247,7 @@ func loadFilePath(filePath string) {
 			IsDir:     true,
 			FileInfos: map[string]*fileInfo{},
 		},
-		MD5File: map[string][]string{},
+		MD5Files: map[string]*md5File{},
 	}
 
 	Must(nil, filepath.Walk(filePath, func(absPath string, f os.FileInfo, err error) error {
@@ -225,25 +259,33 @@ func loadFilePath(filePath string) {
 		relativePath := strings.TrimPrefix(absPath, sdir)
 		if !f.IsDir() {
 			// 是文件
-			md5, e := fileMD5(absPath)
-			if e != nil {
-				logger.Errorln(e)
-				return e
+
+			_, filename := path.Split(absPath)
+			//fmt.Println(absPath, f.Name(), filename)
+			if strings.Contains(filename, ".part") {
+				// 是上传时的文件分片，删除
+				_ = os.RemoveAll(absPath)
+			} else {
+				md5, e := fileMD5(absPath)
+				if e != nil {
+					logger.Errorln(e)
+					return e
+				}
+				dir, file := path.Split(relativePath)
+				info, _ := filePtr.findPath(dir, true)
+				fInfo := &fileInfo{
+					Path:     path.Join(info.Path, info.Name),
+					Name:     file,
+					AbsPath:  path.Join(info.AbsPath, file),
+					IsDir:    false,
+					FileSize: f.Size(),
+					FileMD5:  md5,
+					FileDate: f.ModTime().Format(timeFormat),
+					FileOk:   true,
+				}
+				info.FileInfos[file] = fInfo
+				filePtr.addMD5File(md5, fInfo)
 			}
-			dir, file := path.Split(relativePath)
-			info, _ := filePtr.findPath(dir, true)
-			fInfo := &fileInfo{
-				Path:     path.Join(info.Path, info.Name),
-				Name:     file,
-				AbsPath:  path.Join(info.AbsPath, file),
-				IsDir:    false,
-				FileSize: f.Size(),
-				FileMD5:  md5,
-				FileDate: f.ModTime().Format(timeFormat),
-				FileOk:   true,
-			}
-			info.FileInfos[file] = fInfo
-			filePtr.addMD5(md5, fInfo.AbsPath)
 		} else {
 			_, _ = filePtr.findPath(relativePath, true)
 		}
@@ -251,6 +293,4 @@ func loadFilePath(filePath string) {
 		return nil
 	}))
 
-	str, _ := json.Marshal(filePtr)
-	logger.Infoln(string(str))
 }
