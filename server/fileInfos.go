@@ -171,7 +171,7 @@ func (this *fileInfos) remove(parent *fileInfo, name string) error {
 			md5File_, ok := filePtr.MD5Files[md5]
 			if ok {
 				// 还存在他处引用
-				_, _ = CopyFile(md5File_.File, md5File_.Ptr[0])
+				_ = os.Rename(md5File_.File, md5File_.Ptr[0])
 				md5File_.File = md5File_.Ptr[0]
 			}
 		}
