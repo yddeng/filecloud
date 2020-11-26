@@ -75,6 +75,7 @@ func CopyFile(src, dest string) (written int64, err error) {
 	if err != nil {
 		return 0, err
 	}
+	defer srcF.Close()
 
 	return WriteFile(dest, srcF)
 }
