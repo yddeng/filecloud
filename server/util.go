@@ -4,11 +4,12 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"github.com/shirou/gopsutil/disk"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/shirou/gopsutil/disk"
 )
 
 const timeFormat = "2006-01-02 15:04:05"
@@ -28,9 +29,8 @@ func fileMD5(filename string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	_, err = io.Copy(h, f)
-	if err != nil {
+	defer f.Close()
+	if _, err = io.Copy(h, f); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
