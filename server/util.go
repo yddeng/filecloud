@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,12 +25,19 @@ func makeFilePart(name, part string) string {
 
 // 文件 md5 值
 func fileMD5(filename string) (string, error) {
-	h := md5.New()
+	if info, err := os.Stat(filename); err != nil {
+		return "", err
+	} else if info.IsDir() {
+		return "", errors.New(fmt.Sprintf("%s is a dir", filename))
+	}
+
 	f, err := os.Open(filename)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
+
+	h := md5.New()
 	if _, err = io.Copy(h, f); err != nil {
 		return "", err
 	}
