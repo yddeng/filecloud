@@ -48,6 +48,7 @@ SaveFileMultiple 文件是否保存为多份。
 文件移动、拷贝。
 
 ## 启动
+一、使用本地二进制文件
 
 `go get github.com/yddeng/filecloud`
 
@@ -64,3 +65,12 @@ SaveFileMultiple = false         # 文件是否保存为多份。
 2. `go run server/main/filecloud.go config.toml` 
 
 3. 浏览器访问 webAddr。
+
+
+二、使用容器
+
+```sh
+docker build . -t  yddeng/filecloud:v0.1
+docker container run  --rm -p 9987:9987  yddeng/filecloud:v0.1
+```
+浏览器打开 `localhost:9987` 即可
