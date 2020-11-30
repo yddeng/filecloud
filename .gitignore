@@ -4,6 +4,8 @@
 *.dll
 *.so
 *.dylib
+# for linux binary
+filecloud
 
 # Test binary, built with `go test -c`
 *.test
