@@ -19,10 +19,10 @@ func Launch() {
 	hServer := dhttp.NewHttpServer(webAddr)
 
 	_, root := path.Split(config.FilePath)
-	addrStr := fmt.Sprintf(`var httpAddr = "http://%s/file/";
+	conf := fmt.Sprintf(`var httpAddr = "http://%s/file/";
 var root = "%s";
 var sliceSize = %d*1024*1024;`, config.WebAddr, root, config.SliceSize)
-	err := ioutil.WriteFile(path.Join(config.WebIndex, "js/addr.js"), []byte(addrStr), os.ModePerm)
+	err := ioutil.WriteFile(path.Join(config.WebIndex, "js/config.js"), []byte(conf), os.ModePerm)
 	if err != nil {
 		panic(err)
 	}

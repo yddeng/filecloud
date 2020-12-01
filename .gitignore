@@ -19,4 +19,4 @@ filecloud
 
 *.log
 cloud/
-addr.js
+config.js
