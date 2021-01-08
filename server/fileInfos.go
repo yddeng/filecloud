@@ -88,6 +88,7 @@ func (this *fileInfo) mergeUpload() {
 	}
 
 	this.clearUpload()
+	filePtr.removeMD5File(this.FileMD5, this.AbsPath)
 
 	this.FileOk = true
 	this.FileSize = this.Upload.Size
