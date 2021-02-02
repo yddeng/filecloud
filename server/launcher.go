@@ -42,6 +42,7 @@ var sliceSize = %d*1024*1024;`, config.WebAddr, root, config.SliceSize)
 	hServer.HandleFuncJson("/file/check", &fileCheckReq{}, fileCheck)
 	hServer.HandleFunc("/file/upload", fileUpload)
 	hServer.HandleFuncUrlParam("/file/download", fileDownload)
+	hServer.HandleFuncUrlParam("/file/action", fileAction)
 
 	if err := hServer.Listen(); err != nil {
 		logger.Errorf(err.Error())

@@ -420,3 +420,71 @@ func fileDownload(w http.ResponseWriter, msg interface{}) {
 		_, _ = io.WriteString(w, "Bad request")
 	}
 }
+
+/*
+ * 文件动作
+ * action -> 行为 move copy
+ * filename -> 文件名。
+ * src -> 文件原路径
+ * dest -> 文件新路径
+ */
+func fileAction(w http.ResponseWriter, msg interface{}) {
+	req := msg.(url.Values)
+	action := req.Get("action")
+	filename := req.Get("filename")
+	src := req.Get("src")
+	dest := req.Get("dest")
+	logger.Debugln("fileAction", action, filename, src, dest)
+
+	filePtr.mtx.Lock()
+	defer filePtr.mtx.Unlock()
+	srcInfo, err := filePtr.findPath(src, false)
+	if err != nil {
+		respResult(w, "request argument failed, "+err.Error())
+		return
+	}
+	destInfo, err := filePtr.findPath(dest, true)
+	if err != nil {
+		respResult(w, "request argument failed, "+err.Error())
+		return
+	}
+
+	srcFile, ok := srcInfo.FileInfos[filename]
+	if !ok {
+		respResult(w, "request argument failed")
+		return
+	}
+
+	newInfo := &fileInfo{
+		Path:     path.Join(destInfo.Path, destInfo.Name),
+		Name:     filename,
+		AbsPath:  path.Join(destInfo.AbsPath, filename),
+		FileMD5:  srcFile.FileMD5,
+		FileOk:   true,
+		FileSize: srcFile.FileSize,
+		FileDate: nowFormat(),
+	}
+
+	files, _ := filePtr.MD5Files[srcFile.FileMD5]
+	if config.SaveFileMultiple {
+		// 真实保存，拷贝文件到真实文件路径
+		if _, err := CopyFile(files.Ptr[0], newInfo.AbsPath); err != nil {
+			logger.Errorln(err)
+			respResult(w, "copy file failed, "+err.Error())
+			return
+		}
+	}
+	destInfo.FileInfos[newInfo.Name] = newInfo
+	filePtr.addMD5File(newInfo.FileMD5, newInfo)
+
+	switch action {
+	case "move":
+		// 移除原文件
+		filePtr.remove(srcInfo, filename)
+	case "copy":
+	default:
+		respResult(w, "request argument failed")
+	}
+
+	respResult(w, "")
+}

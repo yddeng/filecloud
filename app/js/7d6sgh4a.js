@@ -131,6 +131,29 @@ function fileDownload() {
     }
 }
 
+function fileAction(action) {
+    let chk_list = document.getElementsByName("checkbox");
+    for(let i= 0;i<chk_list.length;i++){
+        if (chk_list[i].checked) {
+            let reqUrl = util.format("{0}action?action={1}&filename={2}&src={3}&dest={4}",httpAddr,action,chk_list[i].value,pathDom.value,root);
+            let tt = chk_list[i].getAttribute("data");
+            if (tt === "file") {
+                util.httpGet(reqUrl, function (res) {
+                    if (res.ok) {
+                        showTips("成功", 2000);
+                        refresh();
+                    } else {
+                        showTips(res.message, 2000)
+                    }
+                }, function (e) {
+                    console.log(e);
+                    showTips("网络错误！", 2000)
+                })
+            }
+        }
+    }
+}
+
 function select(id) {
     if (id !== "") {
         checkAllState(false);
