@@ -43,9 +43,25 @@ SaveFileMultiple 文件是否保存为多份。
 
 故重启目录结构显示是真实的目录结构。上传的文件分片会在重启加载时删除。
 
+## 接口
+
+```
+hServer.HandleFuncUrlParam("/file/list", fileList) // 当前路径列表
+hServer.HandleFuncUrlParam("/file/delete", fileDelete) // 删除文件、文件夹
+hServer.HandleFuncUrlParam("/file/mkdir", fileMkdir) // 创建目录
+hServer.HandleFuncJson("/file/check", &fileCheckReq{}, fileCheck) // 文件上传时调用，检查文件是否已经存在
+hServer.HandleFunc("/file/upload", fileUpload) // 文件上传，分片上传。
+hServer.HandleFuncUrlParam("/file/download", fileDownload) // 文件下载，暂时只支持文件
+hServer.HandleFuncUrlParam("/file/action", fileAction) // 文件移动、拷贝到指定目录
+```
+
 ## todo
 
 文件移动、拷贝。
+
+## 欢迎PR,ISSUES
+
+个人能力有限，前端的东西不太会。很多都是边查资料边做的，希望有这方面的大佬把前端的代码改改。
 
 ## 启动
 一、使用本地二进制文件
