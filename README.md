@@ -64,7 +64,6 @@ hServer.HandleFuncUrlParam("/file/action", fileAction) // 文件移动、拷贝�
 个人能力有限，前端的东西不太会。很多都是边查资料边做的，希望有这方面的大佬把前端的代码改改。
 
 ## 启动
-一、使用本地二进制文件
 
 `go get github.com/yddeng/filecloud`
 
@@ -80,13 +79,6 @@ SaveFileMultiple = false         # 文件是否保存为多份。
 
 2. `go run server/main/filecloud.go config.toml` 
 
-3. 浏览器访问 webAddr。
+3. 浏览器访问 webAddr。用 `http` 方式访问。
 
 
-二、使用容器
-
-```sh
-docker build . -t  yddeng/filecloud:v0.1
-docker container run  --rm -p 9987:9987  yddeng/filecloud:v0.1
-```
-浏览器打开 `localhost:9987` 即可
