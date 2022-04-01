@@ -45,7 +45,7 @@ func fileMD5(filename string) (string, error) {
 }
 
 func splitPath(dir string) []string {
-	paths := strings.Split(dir, "/")
+	paths := strings.Split(dir, string(os.PathSeparator))
 	l := []string{}
 	for _, v := range paths {
 		if v != "" {

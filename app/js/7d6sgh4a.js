@@ -2,7 +2,7 @@ let winWidth,winHeight;
 let mouse;
 let pathDom;
 let box;
-
+window.pathSeparator = "/";
 window.onload = function() {
     if (typeof(Worker) !== "undefined") {
         console.log("浏览器支持HTML5");
@@ -74,7 +74,7 @@ function mkdir() {
         return;
     }
 
-    let reqUrl = httpAddr+"mkdir?path="+pathDom.value+"/"+input.value;
+    let reqUrl = httpAddr+"mkdir?path="+pathDom.value+window.pathSeparator+input.value;
     util.httpGet(reqUrl,function (res) {
         refresh();
         if (res.ok) {
@@ -167,14 +167,14 @@ function makeNav(path) {
     let tmpActive = `<li class="breadcrumb-item active" aria-current="page">{0}</li>`;
     let dom = document.getElementById('path-nav');
     dom.innerHTML = "";
-    let array = path.split("/");
+    let array = path.split(window.pathSeparator);
     let str = "";
     let nowPath = "";
     for (let i = 0;i < array.length;i++){
         if (i === 0) {
             nowPath +=  array[i]
         }else {
-            nowPath += "/" + array[i]
+            nowPath += window.pathSeparator + array[i]
         }
         if (i === array.length - 1){
             str += util.format(tmpActive,array[i])
@@ -186,6 +186,8 @@ function makeNav(path) {
 }
 
 function fileGet(path) {
+    let replaceChr = '$6:9$'
+    path=path.replaceAll(replaceChr,window.pathSeparator)
     let tmp = `<div class="item">
                 <div class="item-check"><input type="checkbox" id="checkbox-{0}" value="{0}" data="{4}" name="checkbox" class="checkbox" onclick="checkState(this.checked)" ></div>
                 <div class="item-name" onmousedown="select('{0}')">{1}</div>
@@ -204,11 +206,12 @@ function fileGet(path) {
     console.log(reqUrl,path);
     util.httpGet(reqUrl,function (res) {
         if (res.ok) {
+            window.pathSeparator = res.pathSeparator
             let str = "";
             for (let key in res.items){
                 let data = res.items[key];
                 if (data.is_dir){
-                    let folder = util.format(`<a href="#" onclick="fileGet('{1}')" style="text-decoration: none"><i class="fa fa-folder-o"></i><span>&nbsp;&nbsp;{0}</span></a>`,data.filename,pathDom.value+"/"+data.filename);
+                    let folder = util.format(`<a href="#" onclick="fileGet('{1}')" style="text-decoration: none"><i class="fa fa-folder-o"></i><span>&nbsp;&nbsp;{0}</span></a>`,data.filename,pathDom.value+replaceChr+data.filename);
                     str += util.format(tmp,data.filename,folder,"-","-","dir")
                 }else {
                     let file = util.format(`<i class="fa fa-file-o"></i><span>&nbsp;&nbsp;{0}</span>`,data.filename);
@@ -289,7 +292,7 @@ function updateFile(path,file) {
 
     let totalSize = file.size,
         filename = file.name,
-        fileAbs = path+"/"+filename,
+        fileAbs = path+window.pathSeparator+filename,
         total = Math.ceil(file.size / sliceSize),
         existBlob = new Map(),
         loadedMap = new Map();

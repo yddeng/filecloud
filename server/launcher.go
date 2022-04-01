@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -18,11 +18,11 @@ func Launch() {
 	webAddr := fmt.Sprintf("0.0.0.0:%s", port)
 	hServer := dhttp.NewHttpServer(webAddr)
 
-	_, root := path.Split(config.FilePath)
+	_, root := filepath.Split(config.FilePath)
 	conf := fmt.Sprintf(`var httpAddr = "http://%s/file/";
 var root = "%s";
 var sliceSize = %d*1024*1024;`, config.WebAddr, root, config.SliceSize)
-	err := ioutil.WriteFile(path.Join(config.WebIndex, "js/config.js"), []byte(conf), os.ModePerm)
+	err := ioutil.WriteFile(filepath.Join(config.WebIndex, "js", "config.js"), []byte(conf), os.ModePerm)
 	if err != nil {
 		panic(err)
 	}

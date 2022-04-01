@@ -12,7 +12,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"sync"
 )
@@ -68,8 +68,7 @@ func fileCheck(uploadPath, filePath, md5 string) error {
 		cnt++
 	}
 
-	_, filename := path.Split(filePath)
-
+	_, filename := filepath.Split(filePath)
 	elem := map[string]interface{}{
 		"path":     uploadPath,
 		"filename": filename,
@@ -95,7 +94,7 @@ func fileUpload(uploadPath, filePath, md5 string) error {
 		cnt++
 	}
 
-	_, filename := path.Split(filePath)
+	_, filename := filepath.Split(filePath)
 
 	wg := sync.WaitGroup{}
 	wg.Add(cnt)

@@ -21,6 +21,6 @@ func LoadConfig(path string) *Config {
 		panic(err)
 	}
 	config = conf
-	logger.Infoln(config)
+	logger.Info(config)
 	return config
 }

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
+	"path/filepath"
 )
 
 type resultCode struct {
@@ -30,13 +30,14 @@ func respResult(w http.ResponseWriter, message string) {
 /***********************************  拉取路径下的所有文件  ****************************************************/
 
 type fileListResp struct {
-	Ok        bool        `json:"ok"`
-	Total     int         `json:"total"`
-	Count     int         `json:"count"`
-	Items     interface{} `json:"items"`
-	DiskUsed  uint64      `json:"disk_used"`
-	DiskTotal uint64      `json:"disk_total"`
-	DiskUsedP float64     `json:"disk_used_p"`
+	Ok            bool        `json:"ok"`
+	Total         int         `json:"total"`
+	Count         int         `json:"count"`
+	Items         interface{} `json:"items"`
+	DiskUsed      uint64      `json:"disk_used"`
+	DiskTotal     uint64      `json:"disk_total"`
+	DiskUsedP     float64     `json:"disk_used_p"`
+	PathSeparator string      `json:"pathSeparator"`
 }
 
 type item struct {
@@ -57,6 +58,7 @@ func respFileList(w http.ResponseWriter, ok bool, count int, data interface{}) {
 		ret.DiskUsed = diskUsed
 		ret.DiskTotal = diskTotal
 		ret.DiskUsedP = diskUsedP
+		ret.PathSeparator = string(os.PathSeparator)
 	}
 	if err := json.NewEncoder(w).Encode(ret); err != nil {
 		logger.Errorf(err.Error())
@@ -70,13 +72,13 @@ func respFileList(w http.ResponseWriter, ok bool, count int, data interface{}) {
 func fileList(w http.ResponseWriter, msg interface{}) {
 	req := msg.(url.Values)
 	filePath := req.Get("path")
-	logger.Debugln("fileList", filePath)
+	logger.Debug("fileList", filePath)
 
 	filePtr.mtx.RLock()
 	defer filePtr.mtx.RUnlock()
 	info, err := filePtr.findPath(filePath, false)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		respFileList(w, false, 0, nil)
 		return
 	}
@@ -107,7 +109,7 @@ func fileDelete(w http.ResponseWriter, msg interface{}) {
 	req := msg.(url.Values)
 	filePath := req.Get("path")
 	filename := req.Get("filename")
-	logger.Debugln("fileDelete", filePath, filename)
+	logger.Debug("fileDelete", filePath, filename)
 
 	if filename == "" {
 		respResult(w, "请求参数错误!")
@@ -118,13 +120,13 @@ func fileDelete(w http.ResponseWriter, msg interface{}) {
 	defer filePtr.mtx.Unlock()
 	info, err := filePtr.findPath(filePath, false)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		respResult(w, "文件不存在!")
 		return
 	}
 
 	if err = filePtr.remove(info, filename); err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		respResult(w, "文件不存在!")
 		return
 
@@ -142,7 +144,7 @@ func fileDelete(w http.ResponseWriter, msg interface{}) {
 func fileMkdir(w http.ResponseWriter, msg interface{}) {
 	req := msg.(url.Values)
 	filePath := req.Get("path")
-	logger.Debugln("fileMkdir", filePath)
+	logger.Debug("fileMkdir", filePath)
 
 	if filePath == "" {
 		respResult(w, "请求参数错误!")
@@ -153,7 +155,7 @@ func fileMkdir(w http.ResponseWriter, msg interface{}) {
 	defer filePtr.mtx.Unlock()
 	_, err := filePtr.findPath(filePath, false)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		respResult(w, "文件夹名错误，可能与文件名相同")
 		return
 	}
@@ -194,7 +196,7 @@ func respFileCheck(w http.ResponseWriter, err error, need bool, up map[string]st
 
 func fileCheck(w http.ResponseWriter, msg interface{}) {
 	req := msg.(*fileCheckReq)
-	logger.Infoln("fileCheck", req)
+	logger.Info("fileCheck", req)
 
 	if req.Path == "" || req.Filename == "" || req.MD5 == "" || req.Size == 0 || req.Total == 0 {
 		respFileCheck(w, fmt.Errorf("参数请求错误！"), false, nil)
@@ -205,7 +207,7 @@ func fileCheck(w http.ResponseWriter, msg interface{}) {
 	defer filePtr.mtx.Unlock()
 	info, err := filePtr.findPath(req.Path, true)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		respFileCheck(w, err, false, nil)
 		return
 	}
@@ -216,11 +218,11 @@ func fileCheck(w http.ResponseWriter, msg interface{}) {
 		UpSlice:  map[string]string{},
 	}
 
-	absPath := path.Join(info.AbsPath, req.Filename)
+	absPath := filepath.Join(info.AbsPath, req.Filename)
 	file, ok := info.FileInfos[req.Filename]
 	if !ok {
 		newInfo := &fileInfo{
-			Path:    path.Join(info.Path, info.Name),
+			Path:    filepath.Join(info.Path, info.Name),
 			Name:    req.Filename,
 			AbsPath: absPath,
 			FileMD5: req.MD5,
@@ -232,7 +234,7 @@ func fileCheck(w http.ResponseWriter, msg interface{}) {
 			if config.SaveFileMultiple {
 				// 真实保存,拷贝文件
 				if _, err := CopyFile(files.Ptr[0], absPath); err != nil {
-					logger.Errorln(err)
+					logger.Error(err)
 					respFileCheck(w, err, false, nil)
 					return
 				}
@@ -308,7 +310,7 @@ func fileUpload(w http.ResponseWriter, r *http.Request) {
 	md5 := r.FormValue("md5")
 	current := r.FormValue("current")
 
-	logger.Infoln("fileUpload", r.RemoteAddr, filePath, filename, md5, current)
+	logger.Info("fileUpload", r.RemoteAddr, filePath, filename, md5, current)
 
 	if filePath == "" || filename == "" || md5 == "" || current == "" {
 		respResult(w, "参数请求错误！")
@@ -319,7 +321,7 @@ func fileUpload(w http.ResponseWriter, r *http.Request) {
 	defer filePtr.mtx.Unlock()
 	info, err := filePtr.findPath(filePath, false)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		respResult(w, "路径不存在")
 		return
 	}
@@ -339,7 +341,7 @@ func fileUpload(w http.ResponseWriter, r *http.Request) {
 
 	gFile, _, err := r.FormFile("file")
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		respResult(w, err.Error())
 		return
 	}
@@ -347,7 +349,7 @@ func fileUpload(w http.ResponseWriter, r *http.Request) {
 
 	partFilename := makeFilePart(file.AbsPath, current)
 	if _, err = WriteFile(partFilename, gFile); err != nil {
-		logger.Debugln(err.Error())
+		logger.Debug(err.Error())
 		respResult(w, err.Error())
 		return
 	}
@@ -367,13 +369,13 @@ func fileDownload(w http.ResponseWriter, msg interface{}) {
 	req := msg.(url.Values)
 	filePath := req.Get("path")
 	filename := req.Get("filename")
-	logger.Debugln("fileDownload", filePath, filename)
+	logger.Debug("fileDownload", filePath, filename)
 
 	filePtr.mtx.Lock()
 	defer filePtr.mtx.Unlock()
 	info, err := filePtr.findPath(filePath, false)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = io.WriteString(w, "Bad request")
 		return
@@ -401,7 +403,7 @@ func fileDownload(w http.ResponseWriter, msg interface{}) {
 	//打开文件
 	f, err := os.Open(absPath)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = io.WriteString(w, "Bad request")
 		return
@@ -415,7 +417,7 @@ func fileDownload(w http.ResponseWriter, msg interface{}) {
 	//将文件写至responseBody
 	_, err = io.Copy(w, f)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = io.WriteString(w, "Bad request")
 	}
@@ -434,7 +436,7 @@ func fileAction(w http.ResponseWriter, msg interface{}) {
 	filename := req.Get("filename")
 	src := req.Get("src")
 	dest := req.Get("dest")
-	logger.Debugln("fileAction", action, filename, src, dest)
+	logger.Debug("fileAction", action, filename, src, dest)
 
 	filePtr.mtx.Lock()
 	defer filePtr.mtx.Unlock()
@@ -456,9 +458,9 @@ func fileAction(w http.ResponseWriter, msg interface{}) {
 	}
 
 	newInfo := &fileInfo{
-		Path:     path.Join(destInfo.Path, destInfo.Name),
+		Path:     filepath.Join(destInfo.Path, destInfo.Name),
 		Name:     filename,
-		AbsPath:  path.Join(destInfo.AbsPath, filename),
+		AbsPath:  filepath.Join(destInfo.AbsPath, filename),
 		FileMD5:  srcFile.FileMD5,
 		FileOk:   true,
 		FileSize: srcFile.FileSize,
@@ -469,7 +471,7 @@ func fileAction(w http.ResponseWriter, msg interface{}) {
 	if config.SaveFileMultiple {
 		// 真实保存，拷贝文件到真实文件路径
 		if _, err := CopyFile(files.Ptr[0], newInfo.AbsPath); err != nil {
-			logger.Errorln(err)
+			logger.Error(err)
 			respResult(w, "copy file failed, "+err.Error())
 			return
 		}

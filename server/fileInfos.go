@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -66,7 +65,7 @@ func (this *fileInfo) mergeUpload() {
 	}
 	f, err := os.Create(this.AbsPath)
 	if err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 		return
 	}
 	defer f.Close()
@@ -75,13 +74,13 @@ func (this *fileInfo) mergeUpload() {
 		partFile := makeFilePart(this.AbsPath, strconv.Itoa(i))
 		pf, err := os.Open(partFile)
 		if err != nil {
-			logger.Errorln(err)
+			logger.Error(err)
 			return
 		}
 		written, err := io.Copy(f, pf)
 		_ = pf.Close()
 		if err != nil {
-			logger.Errorln(err)
+			logger.Error(err)
 			return
 		}
 		logger.Infof("input %s from %s written %d ", this.AbsPath, partFile, written)
@@ -180,7 +179,7 @@ func (this *fileInfos) remove(parent *fileInfo, name string) error {
 
 	// 删除文件、文件夹
 	if err := os.RemoveAll(info.AbsPath); err != nil {
-		logger.Errorln(err)
+		logger.Error(err)
 	}
 
 	return nil
@@ -199,16 +198,17 @@ func (this *fileInfos) findPath(filePath string, mkdir bool) (*fileInfo, error) 
 			}
 		} else {
 			cInfo = &fileInfo{
-				Path:      path.Join(info.Path, info.Name),
+				Path:      filepath.Join(info.Path, info.Name),
 				Name:      dname,
-				AbsPath:   path.Join(info.AbsPath, dname),
+				AbsPath:   filepath.Join(info.AbsPath, dname),
 				IsDir:     true,
 				FileInfos: map[string]*fileInfo{},
 			}
-			if err := os.MkdirAll(path.Join(cInfo.Path, cInfo.Name), os.ModePerm); err != nil {
+			if err := os.MkdirAll(filepath.Join(cInfo.Path, cInfo.Name), os.ModePerm); err != nil {
 				return nil, err
 			}
 			info.FileInfos[cInfo.Name] = cInfo
+
 		}
 		info = cInfo
 	}
@@ -238,7 +238,7 @@ func walk(info *fileInfo, f func(file *fileInfo) error) (err error) {
 
 func loadFilePath(filePath string) {
 	_ = os.MkdirAll(config.FilePath, os.ModePerm)
-	sdir, dname := path.Split(filePath)
+	sdir, dname := filepath.Split(filePath)
 	filePtr = &fileInfos{
 		mtx: sync.RWMutex{},
 		FileInfo: &fileInfo{
@@ -253,7 +253,7 @@ func loadFilePath(filePath string) {
 
 	Must(nil, filepath.Walk(filePath, func(absPath string, f os.FileInfo, err error) error {
 		if err != nil {
-			logger.Errorln(err)
+			logger.Error(err)
 			return err
 		}
 
@@ -261,7 +261,7 @@ func loadFilePath(filePath string) {
 		if !f.IsDir() {
 			// 是文件
 
-			_, filename := path.Split(absPath)
+			_, filename := filepath.Split(absPath)
 			//fmt.Println(absPath, f.Name(), filename)
 			if strings.Contains(filename, ".part") {
 				// 是上传时的文件分片，删除
@@ -269,15 +269,15 @@ func loadFilePath(filePath string) {
 			} else {
 				md5, e := fileMD5(absPath)
 				if e != nil {
-					logger.Errorln(e)
+					logger.Error(e)
 					return e
 				}
-				dir, file := path.Split(relativePath)
+				dir, file := filepath.Split(relativePath)
 				info, _ := filePtr.findPath(dir, true)
 				fInfo := &fileInfo{
-					Path:     path.Join(info.Path, info.Name),
+					Path:     filepath.Join(info.Path, info.Name),
 					Name:     file,
-					AbsPath:  path.Join(info.AbsPath, file),
+					AbsPath:  filepath.Join(info.AbsPath, file),
 					IsDir:    false,
 					FileSize: f.Size(),
 					FileMD5:  md5,

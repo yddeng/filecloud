@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/yddeng/filecloud/server"
+	"filecloud/server"
 	"os"
 )
 
