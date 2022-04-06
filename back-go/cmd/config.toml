@@ -1,4 +1,4 @@
 WebAddr   = "127.0.0.1:9987"             # web 地址
 WebIndex  = "../../app"           # web html目录
 FilePath  = "cloud"                      # 文件存放目录
-SaveFileMultiple = false                 # 文件是否保存为多份。
+SaveFileMultiple = true                 # 文件是否保存为多份。

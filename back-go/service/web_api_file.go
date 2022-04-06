@@ -13,8 +13,8 @@ type fileListData struct {
 
 type item struct {
 	Filename string `json:"filename"`
-	IsDir    bool   `json:"is_dir"`
-	Size     int64  `json:"size"`
+	IsDir    bool   `json:"isDir"`
+	Size     string `json:"size"`
 	Date     string `json:"date"`
 }
 
@@ -37,12 +37,18 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 	for _, info := range info.FileInfos {
 		// 正在上传中的文件不同步
 		if info.IsDir || info.FileOk {
-			items = append(items, &item{
+			_item := &item{
 				Filename: info.Name,
 				IsDir:    info.IsDir,
-				Size:     info.FileSize,
 				Date:     info.FileDate,
-			})
+			}
+			if info.IsDir {
+				_item.Size = "-"
+			} else {
+				_item.Size = ConvertBytesString(uint64(info.FileSize))
+			}
+
+			items = append(items, _item)
 		}
 	}
 	wait.SetResult("", &fileListData{

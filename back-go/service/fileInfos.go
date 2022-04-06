@@ -197,6 +197,7 @@ func (this *fileInfos) findPath(filePath string, mkdir bool) (*fileInfo, error) 
 				AbsPath:   path.Join(info.AbsPath, dname),
 				IsDir:     true,
 				FileInfos: map[string]*fileInfo{},
+				FileDate:  nowFormat(),
 			}
 			if err := os.MkdirAll(path.Join(cInfo.Path, cInfo.Name), os.ModePerm); err != nil {
 				return nil, err
