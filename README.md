@@ -5,7 +5,7 @@
 
 ## 页面展示
 
-![文件上传](res/file_upload.jpg)
+![文件上传](assets/file_upload.jpg)
 
 ## 分片上传、断点续传
 
