@@ -31,7 +31,11 @@
         </template>
         <template v-else>
           <a-button-group >
-            <a-button icon="folder-add" @click="handleDelete">删除</a-button>
+            <a-button icon="download" >下载</a-button>
+            <a-button icon="delete" @click="handleDelete">删除</a-button>
+            <a-button icon="form" >重命名</a-button>
+            <a-button icon="copy" >复制</a-button>
+            <a-button icon="drag" >移动</a-button>
           </a-button-group>
         </template>
       </a-col>
@@ -128,7 +132,7 @@ export default {
   },
   methods:{
     onSelectChange (selectedRowKeys, selectedRows)  {
-      console.log(selectedRowKeys, selectedRows);
+      //console.log(selectedRowKeys, selectedRows);
       this.selectedRowKeys =selectedRowKeys
       let names = [];
       for (let v of selectedRows){
