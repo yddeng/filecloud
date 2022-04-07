@@ -110,6 +110,9 @@ func fileUpload(uploadPath, filePath, md5 string) error {
 				return
 			}
 			defer resp.Body.Close()
+
+			respBytes, _ := ioutil.ReadAll(resp.Body)
+			fmt.Printf("upload %s %s %s\n", filename, strconv.Itoa(i+1), string(respBytes))
 			wg.Done()
 		}(i)
 	}

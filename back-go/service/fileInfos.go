@@ -191,18 +191,22 @@ func (this *fileInfos) findPath(filePath string, mkdir bool) (*fileInfo, error) 
 				return nil, fmt.Errorf("已存在同名文件！")
 			}
 		} else {
-			cInfo = &fileInfo{
-				Path:      path.Join(info.Path, info.Name),
-				Name:      dname,
-				AbsPath:   path.Join(info.AbsPath, dname),
-				IsDir:     true,
-				FileInfos: map[string]*fileInfo{},
-				FileDate:  nowFormat(),
+			if mkdir {
+				cInfo = &fileInfo{
+					Path:      path.Join(info.Path, info.Name),
+					Name:      dname,
+					AbsPath:   path.Join(info.AbsPath, dname),
+					IsDir:     true,
+					FileInfos: map[string]*fileInfo{},
+					FileDate:  nowFormat(),
+				}
+				if err := os.MkdirAll(path.Join(cInfo.Path, cInfo.Name), os.ModePerm); err != nil {
+					return nil, err
+				}
+				info.FileInfos[cInfo.Name] = cInfo
+			} else {
+				return nil, fmt.Errorf("路径不存在")
 			}
-			if err := os.MkdirAll(path.Join(cInfo.Path, cInfo.Name), os.ModePerm); err != nil {
-				return nil, err
-			}
-			info.FileInfos[cInfo.Name] = cInfo
 		}
 		info = cInfo
 	}

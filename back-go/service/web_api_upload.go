@@ -24,7 +24,7 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 
 	info, err := filePtr.findPath(req.Path, true)
 	if err != nil {
-		wait.SetResult("路径不存在", nil)
+		wait.SetResult(err.Error(), nil)
 		return
 	}
 
@@ -132,7 +132,6 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 }
 
 func (*uploadHandler) upload(wait *WaitConn) {
-	logger.Infof("%s", wait.GetRoute())
 
 	defer func() { wait.Done() }()
 
@@ -142,9 +141,11 @@ func (*uploadHandler) upload(wait *WaitConn) {
 	md5 := ctx.PostForm("md5")
 	current := ctx.PostForm("current")
 
+	logger.Infof("%s %s %s %s %s", wait.GetRoute(), filePath, filename, md5, current)
+
 	info, err := filePtr.findPath(filePath, false)
 	if err != nil {
-		wait.SetResult("路径不存在", nil)
+		wait.SetResult(err.Error(), nil)
 		return
 	}
 

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { VueAxios } from './axios'
-
+import notification from 'ant-design-vue/es/notification'
 
 // 创建 axios 实例
 const request = axios.create({
@@ -21,7 +21,15 @@ request.interceptors.request.use(config => {
 
 // response interceptor
 request.interceptors.response.use((response) => {
-  return response.data
+  if (!response.data.success) { // 成功
+    notification.error({
+      message: '请求出错',
+      description: response.data.message
+    })
+    return Promise.reject(response)
+  } else {
+    return response.data.data
+  }
 }, errorHandler)
 
 const installer = {
