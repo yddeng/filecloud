@@ -15,9 +15,9 @@ func (*pathHandler) mkdir(wait *WaitConn, req struct {
 		return
 	}
 
-	_, err := filePtr.findPath(req.Path, false)
+	_, err := filePtr.findPath(req.Path, true)
 	if err != nil {
-		wait.SetResult("文件夹名错误，可能与文件名相同", nil)
+		wait.SetResult(err.Error(), nil)
 		return
 	}
 

@@ -27,3 +27,27 @@ export function list (parameter) {
     data: parameter
   })
 }
+
+export function fileDelete (parameter) {
+  return request({
+    url: "file/delete",
+    method: 'post',
+    data: parameter
+  })
+}
+
+export function uploadCheck (parameter) {
+  return request({
+    url: "upload/check",
+    method: 'post',
+    data: parameter
+  })
+}
+
+export function uploadFile (parameter) {
+  return request({
+    url: "upload/upload",
+    method: 'post',
+    data: parameter
+  })
+}

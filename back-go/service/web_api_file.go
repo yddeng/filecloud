@@ -29,7 +29,7 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 
 	info, err := filePtr.findPath(req.Path, false)
 	if err != nil {
-		wait.SetResult("路径不存在", nil)
+		wait.SetResult(err.Error(), nil)
 		return
 	}
 
@@ -52,33 +52,34 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 		}
 	}
 	wait.SetResult("", &fileListData{
-		Total: 0,
+		Total: len(items),
 		Items: items,
 	})
 }
 
 func (*fileHandler) delete(wait *WaitConn, req struct {
-	Path     string `json:"path"`
-	Filename string `json:"filename"`
+	Path     string   `json:"path"`
+	Filename []string `json:"filename"`
 }) {
 	logger.Infof("%s %v", wait.GetRoute(), req)
 	defer func() { wait.Done() }()
 
-	if req.Path == "" || req.Filename == "" {
+	if req.Path == "" || len(req.Filename) == 0 {
 		wait.SetResult("请求参数错误!", nil)
 		return
 	}
 
 	info, err := filePtr.findPath(req.Path, false)
 	if err != nil {
-		wait.SetResult("路径不存在", nil)
+		wait.SetResult(err.Error(), nil)
 		return
 	}
 
-	if err = filePtr.remove(info, req.Filename); err != nil {
-		wait.SetResult("文件不存在!", nil)
-		return
-
+	for _, filename := range req.Filename {
+		if err = filePtr.remove(info, filename); err != nil {
+			wait.SetResult(err.Error(), nil)
+			return
+		}
 	}
 }
 

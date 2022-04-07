@@ -66,7 +66,7 @@ func (this *fileInfo) mergeUpload() {
 	}
 	defer f.Close()
 
-	for i := 1; i <= this.Upload.SliceCnt; i++ {
+	for i := 0; i < this.Upload.SliceCnt; i++ {
 		partFile := makeFilePart(this.AbsPath, strconv.Itoa(i))
 		pf, err := os.Open(partFile)
 		if err != nil {
@@ -188,7 +188,7 @@ func (this *fileInfos) findPath(filePath string, mkdir bool) (*fileInfo, error) 
 		cInfo, ok := info.FileInfos[dname]
 		if ok {
 			if !cInfo.IsDir {
-				return nil, fmt.Errorf("已存在同名文件！")
+				return nil, fmt.Errorf("已存在同名文件")
 			}
 		} else {
 			if mkdir {
