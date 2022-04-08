@@ -185,7 +185,7 @@ func remove(parent *fileInfo, name string) error {
 
 	// 遍历文件
 	if err := walk(info, func(file *fileInfo) error {
-		if !file.IsDir {
+		if !file.IsDir && file.FileMD5 != "" {
 			if !saveFileMultiple {
 				if md5File_, ok := filePtr.MD5Files[file.FileMD5]; ok {
 					if md5File_.File == file.AbsPath {
@@ -230,6 +230,7 @@ func remove(parent *fileInfo, name string) error {
 
 // 拷贝到目标目录下
 func copy2(src, destParent *fileInfo, destName string) error {
+	srcPath := path.Join(src.Path, src.Name)
 	return walk(src, func(file *fileInfo) error {
 		var fileName string
 		var dirInfo, newInfo *fileInfo
@@ -239,9 +240,13 @@ func copy2(src, destParent *fileInfo, destName string) error {
 			fileName = destName
 			dirInfo = destParent
 		} else {
-			revPath := strings.TrimPrefix(file.Path, path.Join(src.Path, src.Name))
-			//fmt.Println(11111, file.Path, src.Path, src.Name, revPath)
-			revPath = path.Join(destParent.Path, destParent.Name, destName, revPath)
+			filePath := path.Join(file.Path, file.Name)
+			revPath := strings.TrimPrefix(filePath, srcPath+"/")
+			revPath = path.Dir(revPath)
+
+			fmt.Println(11111, filePath, src.Path, src.Name, revPath)
+			revPath = path.Join(destParent.Path, destName, revPath)
+			fmt.Println(22222, filePath, src.Path, src.Name, revPath)
 			if dirInfo, err = destParent.findDir(revPath, true); err != nil {
 				return err
 			}
@@ -251,11 +256,12 @@ func copy2(src, destParent *fileInfo, destName string) error {
 		if newInfo, err = dirInfo.makeChild(fileName, file.IsDir); err != nil {
 			return err
 		}
-		//fmt.Println(src.Path, file.Path, file.Name, newInfo.Path, newInfo.Name)
-		if !file.IsDir {
+		fmt.Println(src.Path, file.Path, file.Name, newInfo.Path, newInfo.Name)
+		if !file.IsDir && file.FileMD5 != "" {
 			if saveFileMultiple {
 				// 真实保存,拷贝文件
 				files, _ := filePtr.MD5Files[file.FileMD5]
+				//logger.Info(files, newInfo)
 				if _, err := CopyFile(files.Ptr[0], newInfo.AbsPath); err != nil {
 					return err
 				}
@@ -263,6 +269,7 @@ func copy2(src, destParent *fileInfo, destName string) error {
 
 			newInfo.FileSize = file.FileSize
 			newInfo.FileMD5 = file.FileMD5
+			addMD5File(newInfo.FileMD5, newInfo)
 		}
 		dirInfo.FileInfos[newInfo.Name] = newInfo
 

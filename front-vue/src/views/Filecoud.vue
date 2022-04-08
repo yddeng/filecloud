@@ -58,7 +58,7 @@
      
   </div>
 
-  <div id="path">
+  <div class="path">
     <template v-if="navs.length === 1">
       全部文件
     </template>
@@ -87,41 +87,66 @@
   :row-selection="{selectedRowKeys:selectedRowKeys,onChange:onSelectChange}"
   >
     <template slot="name" slot-scope="text, record,index">
-      <template v-if="record.isDir">
-        <template v-if="addFolder && index === 0">
-          <a-icon type="folder" />&nbsp;&nbsp;
+      <a-icon type="folder" v-if="record.isDir"/>
+      <a-icon type="file" v-else/>
+      &nbsp;&nbsp;
+      <template v-if="addFolder && index === 0">
           <a-input v-model="addFolderName"  style="width:50%"/>&nbsp;
           <a-button icon="check" type="primary" size="small" @click="handleAddFolderOK"/>&nbsp;
           <a-button icon="close" type="primary" size="small" @click="handleAddFolderCancle"/>
-        </template>
-        <template v-else>
-          <a-icon type="folder" />&nbsp;&nbsp;
-          <template v-if="renameIndex === index">
-            <a-input v-model="renameValue"  style="width:50%"/>&nbsp;
-            <a-button icon="check" type="primary" size="small" @click="handleRenameOK"/>&nbsp;
-            <a-button icon="close" type="primary" size="small" @click="handleRenameCancle"/>
-          </template>
-          <template v-else>
-            <a href="javascript:;" @click="gonext(text)">{{text}}</a>
-          </template>
-        </template>
       </template>
-      <template v-else>
-        <a-icon type="file" />&nbsp;&nbsp;
-        <template v-if="renameIndex === index">
-          <a-input v-model="renameValue" style="width:50%"/>&nbsp;
+      <template v-else-if="renameIndex === index">
+          <a-input v-model="renameValue"  style="width:50%"/>&nbsp;
           <a-button icon="check" type="primary" size="small" @click="handleRenameOK"/>&nbsp;
           <a-button icon="close" type="primary" size="small" @click="handleRenameCancle"/>
-        </template>
-        <template v-else>
-          <span >{{text}}</span>
-        </template>
       </template>
+      <template v-else>
+        <a v-if="record.isDir" href="javascript:;" @click="gonext(text)">{{text}}</a>
+        <span v-else>{{text}}</span>
+       </template>
     </template>
   </a-table>
 
-  <a-modal v-model="dirModalVisible" :title="dirModalTitle" :ok-text="dirModalOkText" cancel-text="取消" @ok="handleMvcp">
-      
+  <a-modal 
+  v-model="dirModalVisible" 
+  :title="dirModalTitle" 
+  width="700px"
+  :ok-text="dirModalOkText" 
+  cancel-text="取消" 
+  @ok="handleMvcp">
+    <div class="path">
+      <template v-if="dirModalNavs.length === 1">
+        全部文件
+      </template>
+      <template v-else>
+        <a href="javascript:;" @click="mvcpGoback()">返回上一级</a>
+        <a-divider type="vertical" />
+        <a href="javascript:;" @click="mvcpGoto(0)">全部文件</a>
+        <template v-for="(v,i) of dirModalNavs">
+          <template v-if="i !== 0">
+            <template v-if="i === dirModalNavs.length-1">
+              &nbsp;>&nbsp; {{v}}
+            </template>
+            <template v-else>
+              &nbsp;>&nbsp; <a href="javascript:;" @click="mvcpGoto(i)" :key=i>{{v}}</a>
+            </template>
+          </template>
+        </template>
+      </template>
+    </div>
+    <a-table 
+    :columns="dirModalColumns" 
+    :data-source="dirModalData"
+    :pagination="false"
+    :showHeader="false"
+    :rowKey="(record,index) => index"
+    >
+    <template slot="name" slot-scope="text">
+      <a-icon type="folder" />
+      &nbsp;&nbsp;
+        <a  href="javascript:;" @click="mvcpGonext(text)">{{text}}</a>
+    </template>
+    </a-table>
   </a-modal>
  </div>
 </template>
@@ -132,7 +157,8 @@ list,
 uploadCheck,
 uploadFile,
 fileRemove,
-rename} from "@/api/api"
+rename,
+mvcp} from "@/api/api"
 import SparkMD5 from "spark-md5";
 
 export default {
@@ -147,7 +173,8 @@ export default {
       selectedRowKeys:[],
       selectedNames:[],
 
-      navs :["cloud"],
+      root:"cloud",
+      navs :[],
       table:{},
 
       // 新建目录
@@ -166,12 +193,18 @@ export default {
       dirModalVisible:false,
       dirModalTitle:"",
       dirModalOkText:"",
+      dirModalNavs:[],
+      dirModalColumns:[
+        {title:'文件名',dataIndex: 'filename',scopedSlots: { customRender: 'name' }},
+      ],
+      dirModalData:[],
       mvcpMove:false,
       mvcpSource:[],
       mvcpTarget:"",
     }
   },
   mounted () {
+    this.navs.push(this.root);
     this.goto(0);
   },
   methods:{
@@ -191,6 +224,15 @@ export default {
         this.selectedRowKeys = []
         this.selectedNames = []
         this.table = res;
+        // 排序 目录 > 名字
+        this.table.items.sort((a,b) =>{
+          if ( !a.isDir && b.isDir){
+            return 1
+          }else if (a.isDir == b.isDir){
+            return a.filename - b.filename
+          }
+          return -1
+        })
         //console.log(this.table);
       })
     },
@@ -244,9 +286,11 @@ export default {
       }
     },
     handleAddFolderCancle(){
-      this.addFolder = false
-      this.addFolderName = ""
-      this.table.items = this.table.items.slice(1)
+      if (this.addFolder){
+        this.addFolder = false
+        this.addFolderName = ""
+        this.table.items = this.table.items.slice(1)
+      }
     },
     handleUploadType(item){
       if (item.key === "folder"){
@@ -283,10 +327,11 @@ export default {
       this.getFileMd5(file,(fileMd5) => {
         const args = {path:path,filename:filename,md5:fileMd5,size:size,sliceTotal:total,sliceSize:sliceSize}
         uploadCheck(args).then(ret =>{
-          console.log(ret);
+          //console.log(ret);
           // 开始上传
           if (ret.need) {
             const token = ret.token
+            let upCount = total
             for (let current = 0;current < total ;current++){
               const index = current.toString()
               if (ret.existSlice === null || !(index in ret.existSlice)){
@@ -303,8 +348,13 @@ export default {
 
                 uploadFile(fd).then(() => {
                   console.log(index,"ok");
-
+                  upCount--
+                  if (upCount == 0){
+                    this.getList(this.navs.join("/"))
+                  }
                 })
+              }else{
+                upCount--
               }
             }
           }
@@ -312,7 +362,7 @@ export default {
 
       })
 
-      console.log(filename,path,size,total);
+      //console.log(filename,path,size,total);
       return false
     },
     getFileMd5(file,callback){
@@ -349,9 +399,14 @@ export default {
     },
     openRename(){
       if (this.selectedRowKeys.length === 1){
+        if (this.addFolder){
+          this.handleAddFolderCancle()
+          this.selectedRowKeys = [this.selectedRowKeys[0]-1]
+        }
         this.renameIndex = this.selectedRowKeys[0]
         this.renameValue = this.selectedNames[0]
       }
+      
     },
     handleRenameOK(){
       let path = this.navs.join("/")
@@ -376,6 +431,7 @@ export default {
         this.dirModalTitle="移动到"
         this.dirModalOkText="移动到此"
       }else{
+        this.mvcpMove = false
         this.dirModalTitle="复制到"
         this.dirModalOkText="复制到此"
       }
@@ -385,11 +441,62 @@ export default {
       for (let name of this.selectedNames){
         this.mvcpSource.push(path + "/" + name)
       }
+
+      this.dirModalNavs = [this.root]
+      this.mvcpGetList(this.dirModalNavs.join("/"))
       //console.log(this.mvcpSource,this.dirModalVisible);
       this.dirModalVisible = true
     },
+    mvcpGetList(path){
+      list({path:path}).then(res => {
+        this.dirModalData = [];
+        for (let v of res.items){
+          if (v.isDir){
+            this.dirModalData.push(v)
+          }
+        }
+        
+        this.dirModalData.sort((a,b) =>{
+          if ( !a.isDir && b.isDir){
+            return 1
+          }else if (a.isDir == b.isDir){
+            return a.filename - b.filename
+          }
+          return -1
+        })
+        //console.log(this.dirModalData);
+      })
+    },
+    mvcpGoto(index){
+      if (index >= 0 && index < this.dirModalNavs.length ){
+        this.dirModalNavs.splice(index+1)
+        const path = this.dirModalNavs.join("/")
+        this.mvcpGetList(path)
+      }
+    },
+    mvcpGoback(){
+      if (this.dirModalNavs.length > 1) {
+        this.dirModalNavs.pop()
+        const path = this.dirModalNavs.join("/")
+        this.mvcpGetList(path)
+      }
+    },
+    mvcpGonext(dir){
+      if (dir !== ""){
+        this.dirModalNavs.push(dir)
+        const path = this.dirModalNavs.join("/")
+        this.mvcpGetList(path)
+      }
+    },
     handleMvcp(){
-
+      const args = {move:this.mvcpMove,source:this.mvcpSource,target:this.dirModalNavs.join("/")}
+      mvcp(args)
+      .then(()=>{
+        this.getList(this.navs.join("/"))
+      })
+      .finally(()=>{
+        this.dirModalVisible = false
+      })
     }
   },
 
@@ -403,7 +510,7 @@ export default {
   height:60px;
   line-height:60px;
 }
-#path{
+.path{
   margin:10px 10px;
 }
 </style>

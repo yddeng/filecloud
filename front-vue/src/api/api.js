@@ -44,6 +44,14 @@ export function rename (parameter) {
   })
 }
 
+export function mvcp (parameter) {
+  return request({
+    url: "file/mvcp",
+    method: 'post',
+    data: parameter
+  })
+}
+
 export function uploadCheck (parameter) {
   return request({
     url: "upload/check",
