@@ -28,9 +28,17 @@ export function list (parameter) {
   })
 }
 
-export function fileDelete (parameter) {
+export function fileRemove (parameter) {
   return request({
-    url: "file/delete",
+    url: "file/remove",
+    method: 'post',
+    data: parameter
+  })
+}
+
+export function rename (parameter) {
+  return request({
+    url: "file/rename",
     method: 'post',
     data: parameter
   })

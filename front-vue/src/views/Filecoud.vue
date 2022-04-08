@@ -3,7 +3,7 @@
   <div id="header">
     <a-row justify="space-between" type="flex">
       <a-col>
-        <template v-if="this.actionFiles.length === 0">
+        <template v-if="this.selectedNames.length === 0">
           <a-upload 
           ref="upload"
           multiple 
@@ -25,17 +25,17 @@
             </a-dropdown>
           </a-upload>&nbsp;
           <a-button-group >
-            <a-button icon="folder-add" @click="handleAddFolder">新建文件夹</a-button>
-            <a-button icon="download" >下载文件</a-button>
+            <a-button icon="folder-add" @click="openAddFolder">新建文件夹</a-button>
+            <a-button icon="download" >离线下载</a-button>
           </a-button-group>
         </template>
         <template v-else>
           <a-button-group >
             <a-button icon="download" >下载</a-button>
-            <a-button icon="delete" @click="handleDelete">删除</a-button>
-            <a-button icon="form" v-show="this.actionFiles.length === 1">重命名</a-button>
-            <a-button icon="copy" >复制</a-button>
-            <a-button icon="drag" >移动</a-button>
+            <a-button icon="delete" @click="handleRemove">删除</a-button>
+            <a-button icon="form" v-show="this.selectedNames.length === 1" @click="openRename">重命名</a-button>
+            <a-button icon="copy" @click="openMvcpModal(false)">复制</a-button>
+            <a-button icon="drag" @click="openMvcpModal(true)">移动</a-button>
           </a-button-group>
         </template>
       </a-col>
@@ -95,17 +95,44 @@
           <a-button icon="close" type="primary" size="small" @click="handleAddFolderCancle"/>
         </template>
         <template v-else>
-          <a-icon type="folder" />&nbsp;&nbsp;<a href="javascript:;" @click="gonext(text)">{{text}}</a>
+          <a-icon type="folder" />&nbsp;&nbsp;
+          <template v-if="renameIndex === index">
+            <a-input v-model="renameValue"  style="width:50%"/>&nbsp;
+            <a-button icon="check" type="primary" size="small" @click="handleRenameOK"/>&nbsp;
+            <a-button icon="close" type="primary" size="small" @click="handleRenameCancle"/>
+          </template>
+          <template v-else>
+            <a href="javascript:;" @click="gonext(text)">{{text}}</a>
+          </template>
         </template>
       </template>
-      <template v-else><a-icon type="file" />&nbsp;&nbsp;<span >{{text}}</span></template>
+      <template v-else>
+        <a-icon type="file" />&nbsp;&nbsp;
+        <template v-if="renameIndex === index">
+          <a-input v-model="renameValue" style="width:50%"/>&nbsp;
+          <a-button icon="check" type="primary" size="small" @click="handleRenameOK"/>&nbsp;
+          <a-button icon="close" type="primary" size="small" @click="handleRenameCancle"/>
+        </template>
+        <template v-else>
+          <span >{{text}}</span>
+        </template>
+      </template>
     </template>
   </a-table>
+
+  <a-modal v-model="dirModalVisible" :title="dirModalTitle" :ok-text="dirModalOkText" cancel-text="取消" @ok="handleMvcp">
+      
+  </a-modal>
  </div>
 </template>
 <script>
 
-import {mkdir,list,uploadCheck,uploadFile,fileDelete} from "@/api/api"
+import {mkdir,
+list,
+uploadCheck,
+uploadFile,
+fileRemove,
+rename} from "@/api/api"
 import SparkMD5 from "spark-md5";
 
 export default {
@@ -118,13 +145,30 @@ export default {
         {title:'大小',dataIndex: 'size'},
       ],
       selectedRowKeys:[],
+      selectedNames:[],
+
       navs :["cloud"],
       table:{},
+
+      // 新建目录
       addFolder: false,
       addFolderName:"",
+
+      // 上传文件
       uploadDirectory:false,
       uploadFileOpen:false,
-      actionFiles:[],
+
+      // 重命名
+      renameIndex:-1,
+      renameValue:"",
+
+      // 移动、拷贝
+      dirModalVisible:false,
+      dirModalTitle:"",
+      dirModalOkText:"",
+      mvcpMove:false,
+      mvcpSource:[],
+      mvcpTarget:"",
     }
   },
   mounted () {
@@ -133,21 +177,21 @@ export default {
   methods:{
     onSelectChange (selectedRowKeys, selectedRows)  {
       //console.log(selectedRowKeys, selectedRows);
-      this.selectedRowKeys =selectedRowKeys
+      this.selectedRowKeys = selectedRowKeys
       let names = [];
       for (let v of selectedRows){
         names.push(v.filename)
       }
-      this.actionFiles = names;
+      this.selectedNames = names;
     },
     getList(path){
-      list({path:path})
-      .then(res => {
-         console.log(res);
-         this.addFolder = false;
-         this.addFolderName = "";
-          this.actionFiles = []
-         this.table = res;
+      list({path:path}).then(res => {
+        this.addFolder = false;
+        this.addFolderName = "";
+        this.selectedRowKeys = []
+        this.selectedNames = []
+        this.table = res;
+        //console.log(this.table);
       })
     },
     goback(){
@@ -174,18 +218,7 @@ export default {
         this.getList(path)
       }
     },
-    mkdir (path ){
-      const args = { path:path}
-      console.log(args);
-      mkdir(args)
-      .then(() =>{
-        //console.log(res);
-        const path = this.navs.join("/")
-        this.getList(path)
-      })
-      .catch(err => console.log(err))
-    },
-    handleAddFolder(){
+    openAddFolder(){
       const newRow = {
         filename:"",
         isDir:true,
@@ -197,11 +230,17 @@ export default {
       this.table.items = [newRow,...this.table.items]
     },
     handleAddFolderOK(){
-      console.log(this.addFolder,this.addFolderName);
+      //console.log(this.addFolder,this.addFolderName);
       if (this.addFolder && this.addFolderName != ""){
         const path = this.navs.join("/") + "/" + this.addFolderName
-        console.log(path);
-        this.mkdir(path)
+        //console.log(path);
+        const args = { path:path}
+        //console.log(args);
+        mkdir(args).then(() =>{
+          //console.log(res);
+          const path = this.navs.join("/")
+          this.getList(path)
+        })
       }
     },
     handleAddFolderCancle(){
@@ -302,12 +341,55 @@ export default {
     handleTransfer(){
 
     },
-    handleDelete(){
+    handleRemove(){
       let path = this.navs.join("/")
-      fileDelete({path:path,filename:this.actionFiles}).then(()=>{
-        this.selectedRowKeys = []
+      fileRemove({path:path,filename:this.selectedNames}).then(()=>{
         this.getList(path)
       })
+    },
+    openRename(){
+      if (this.selectedRowKeys.length === 1){
+        this.renameIndex = this.selectedRowKeys[0]
+        this.renameValue = this.selectedNames[0]
+      }
+    },
+    handleRenameOK(){
+      let path = this.navs.join("/")
+      rename({path:path,oldName:this.selectedNames[0],newName:this.renameValue})
+      .then(()=>{
+        this.getList(path)
+      })
+      .finally(() => {
+        this.renameIndex = -1
+      })
+    },
+    handleRenameCancle(){
+      this.renameIndex = -1
+    },
+    openMvcpModal(move){
+      if (this.selectedNames.length == 0){
+        return
+      }
+      
+      if (move){
+        this.mvcpMove = true
+        this.dirModalTitle="移动到"
+        this.dirModalOkText="移动到此"
+      }else{
+        this.dirModalTitle="复制到"
+        this.dirModalOkText="复制到此"
+      }
+      
+      this.mvcpSource = []
+      const path = this.navs.join("/")
+      for (let name of this.selectedNames){
+        this.mvcpSource.push(path + "/" + name)
+      }
+      //console.log(this.mvcpSource,this.dirModalVisible);
+      this.dirModalVisible = true
+    },
+    handleMvcp(){
+
     }
   },
 
@@ -318,8 +400,8 @@ export default {
   padding:0 20px;
 }
 #header{
-  height:50px;
-  line-height:50px;
+  height:60px;
+  line-height:60px;
 }
 #path{
   margin:10px 10px;
