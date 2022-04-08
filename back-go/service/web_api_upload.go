@@ -1,9 +1,5 @@
 package service
 
-import (
-	"path"
-)
-
 type uploadHandler struct {
 }
 
@@ -23,7 +19,7 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 		return
 	}
 
-	info, err := findDir(req.Path, true)
+	dirInfo, err := filePtr.FileInfo.findDir(req.Path, true)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
@@ -44,10 +40,9 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 		ExistSlice map[string]int64 `json:"existSlice"`
 	}{}
 
-	absPath := path.Join(info.AbsPath, req.Filename)
-	file, ok := info.FileInfos[req.Filename]
+	file, ok := dirInfo.FileInfos[req.Filename]
 	if !ok {
-		newInfo, err := info.makeChild(req.Filename, false)
+		newInfo, err := dirInfo.makeChild(req.Filename, false)
 		if err != nil {
 			logger.Error(err)
 			wait.SetResult(err.Error(), nil)
@@ -57,9 +52,9 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 		files, md5Ok := filePtr.MD5Files[req.MD5]
 		if md5Ok {
 			// 已存在md5文件
-			if config.SaveFileMultiple {
+			if saveFileMultiple {
 				// 真实保存,拷贝文件
-				if _, err := CopyFile(files.Ptr[0], absPath); err != nil {
+				if _, err := CopyFile(files.Ptr[0], newInfo.AbsPath); err != nil {
 					logger.Error(err)
 					wait.SetResult(err.Error(), nil)
 					return
@@ -78,7 +73,7 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 			resp.Token = up.Token
 		}
 
-		info.FileInfos[newInfo.Name] = newInfo
+		dirInfo.FileInfos[newInfo.Name] = newInfo
 		wait.SetResult("", resp)
 	} else {
 		if file.IsDir {
@@ -135,13 +130,13 @@ func (*uploadHandler) upload(wait *WaitConn) {
 
 	logger.Infof("%s %s %s %s %s", wait.GetRoute(), filePath, filename, current, token)
 
-	info, err := findDir(filePath, false)
+	dirInfo, err := filePtr.FileInfo.findDir(filePath, false)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
 	}
 
-	file, ok := info.FileInfos[filename]
+	file, ok := dirInfo.FileInfos[filename]
 	if !ok || file.FileUpload == nil || file.FileUpload.Token != token {
 		wait.SetResult("上传流程错误，check！", nil)
 		return

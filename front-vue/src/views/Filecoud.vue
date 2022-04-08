@@ -241,12 +241,13 @@ export default {
       const total = Math.ceil(size / sliceSize)
 
       // md5
-      this.getFileMd5(file,sliceSize,total,(fileMd5,sliceMd5) => {
-        const args = {path:path,filename:filename,md5:fileMd5,size:size,sliceMd5:sliceMd5}
+      this.getFileMd5(file,(fileMd5) => {
+        const args = {path:path,filename:filename,md5:fileMd5,size:size,sliceTotal:total,sliceSize:sliceSize}
         uploadCheck(args).then(ret =>{
           console.log(ret);
           // 开始上传
           if (ret.need) {
+            const token = ret.token
             for (let current = 0;current < total ;current++){
               const index = current.toString()
               if (ret.existSlice === null || !(index in ret.existSlice)){
@@ -259,8 +260,7 @@ export default {
                 fd.append('file', blob);
                 fd.append('filename', filename);
                 fd.append('current', index);
-                fd.append('md5', fileMd5),
-                fd.append('sliceMd5', sliceMd5[index]),
+                fd.append('token', token);
 
                 uploadFile(fd).then(() => {
                   console.log(index,"ok");
@@ -276,43 +276,15 @@ export default {
       console.log(filename,path,size,total);
       return false
     },
-    getFileMd5(file,sliceSize,sliceCount,callback){
-      let currentSlice = 0,
-        sliceMd5 = {};
+    getFileMd5(file,callback){
+      let fileSpark = new SparkMD5(),
+          fileReader = new FileReader();
 
-      function loadSliceMd5(){
-        let start = sliceSize * currentSlice,
-            end = start + sliceSize > file.size ? file.size : start + sliceSize;
-        
-        let sliceSpark = new SparkMD5(),
-            sliceReader = new FileReader();
-        
-        sliceReader.readAsBinaryString(file.slice(start,end))
-        sliceReader.onload = function (ev){
-          sliceSpark.appendBinary(ev.target.result);
-          sliceMd5[currentSlice] = sliceSpark.end()
-          currentSlice ++
-          if (currentSlice < sliceCount){
-            loadSliceMd5()
-          }else{
-            loadFileMd5()
-          }
-
-        }
-      }
-
-      loadSliceMd5();
-
-      function loadFileMd5(){
-        let fileSpark = new SparkMD5(),
-            fileReader = new FileReader();
-
-        fileReader.readAsBinaryString(file);
-        fileReader.onload = function (ev) {
-          fileSpark.appendBinary(ev.target.result);
-          callback(fileSpark.end(),sliceMd5);
-        };
-      }
+      fileReader.readAsBinaryString(file);
+      fileReader.onload = function (ev) {
+        fileSpark.appendBinary(ev.target.result);
+        callback(fileSpark.end());
+      };
       
     },
     handleChange(info) {

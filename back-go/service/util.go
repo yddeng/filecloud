@@ -8,7 +8,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -41,17 +40,6 @@ func fileMD5(filename string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-func splitPath(dir string) []string {
-	paths := strings.Split(dir, "/")
-	l := []string{}
-	for _, v := range paths {
-		if v != "" {
-			l = append(l, v)
-		}
-	}
-	return l
 }
 
 func Must(i interface{}, err error) interface{} {

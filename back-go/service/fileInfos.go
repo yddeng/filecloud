@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-var filePtr *fileInfos
+var (
+	filePtr          *fileInfos
+	saveFileMultiple = true
+)
 
 type fileInfos struct {
 	FileInfo *fileInfo           `json:"fileInfo"`
@@ -58,6 +61,34 @@ func (this *fileInfo) makeChild(name string, isDir bool) (*fileInfo, error) {
 		if err := os.MkdirAll(info.AbsPath, os.ModePerm); err != nil {
 			return nil, err
 		}
+	}
+	return info, nil
+}
+
+// 查找目录
+func (this *fileInfo) findDir(filePath string, mkdir bool) (*fileInfo, error) {
+	paths := strings.Split(path.Clean(filePath), "/")
+
+	info := this
+	for i := 1; i < len(paths); i++ {
+		dirName := paths[i]
+		cInfo, ok := info.FileInfos[dirName]
+		if ok {
+			if !cInfo.IsDir {
+				return nil, fmt.Errorf("已存在同名文件")
+			}
+		} else {
+			if mkdir {
+				var err error
+				if cInfo, err = info.makeChild(dirName, true); err != nil {
+					return nil, err
+				}
+				info.FileInfos[cInfo.Name] = cInfo
+			} else {
+				return nil, fmt.Errorf("路径不存在")
+			}
+		}
+		info = cInfo
 	}
 	return info, nil
 }
@@ -154,19 +185,20 @@ func remove(parent *fileInfo, name string) error {
 
 	// 遍历文件
 	if err := walk(info, func(file *fileInfo) error {
-		if !config.SaveFileMultiple {
-			if md5File_, ok := filePtr.MD5Files[file.FileMD5]; ok {
-				if md5File_.File == file.AbsPath {
-					// 此文件为源文件
-					delMd5[file.FileMD5] = struct{}{}
+		if !file.IsDir {
+			if !saveFileMultiple {
+				if md5File_, ok := filePtr.MD5Files[file.FileMD5]; ok {
+					if md5File_.File == file.AbsPath {
+						// 此文件为源文件
+						delMd5[file.FileMD5] = struct{}{}
+					}
 				}
 			}
+			// 删除md5指向
+			removeMD5File(file.FileMD5, file.AbsPath)
+			// 清理上传的分片
+			file.clearUpload()
 		}
-
-		// 删除md5指向
-		removeMD5File(file.FileMD5, file.AbsPath)
-		// 清理上传的分片
-		file.clearUpload()
 
 		return nil
 	}); err != nil {
@@ -176,7 +208,7 @@ func remove(parent *fileInfo, name string) error {
 	// 删除info
 	delete(parent.FileInfos, info.Name)
 
-	if !config.SaveFileMultiple {
+	if !saveFileMultiple {
 		// 文件夹中包含源文件需要拷贝到他处
 		for md5 := range delMd5 {
 			md5File_, ok := filePtr.MD5Files[md5]
@@ -196,32 +228,46 @@ func remove(parent *fileInfo, name string) error {
 	return nil
 }
 
-// 查找目录，忽略了第一层级目录
-func findDir(filePath string, mkdir bool) (*fileInfo, error) {
-	paths := splitPath(filePath)
-
-	info := filePtr.FileInfo
-	for i := 1; i < len(paths); i++ {
-		dirName := paths[i]
-		cInfo, ok := info.FileInfos[dirName]
-		if ok {
-			if !cInfo.IsDir {
-				return nil, fmt.Errorf("已存在同名文件")
-			}
+// 拷贝到目标目录下
+func copy2(src, destParent *fileInfo, destName string) error {
+	return walk(src, func(file *fileInfo) error {
+		var fileName string
+		var dirInfo, newInfo *fileInfo
+		var err error
+		if file.AbsPath == src.AbsPath {
+			// 自己
+			fileName = destName
+			dirInfo = destParent
 		} else {
-			if mkdir {
-				var err error
-				if cInfo, err = info.makeChild(dirName, true); err != nil {
-					return nil, err
-				}
-				info.FileInfos[cInfo.Name] = cInfo
-			} else {
-				return nil, fmt.Errorf("路径不存在")
+			revPath := strings.TrimPrefix(file.Path, path.Join(src.Path, src.Name))
+			//fmt.Println(11111, file.Path, src.Path, src.Name, revPath)
+			revPath = path.Join(destParent.Path, destParent.Name, destName, revPath)
+			if dirInfo, err = destParent.findDir(revPath, true); err != nil {
+				return err
 			}
+			fileName = file.Name
 		}
-		info = cInfo
-	}
-	return info, nil
+
+		if newInfo, err = dirInfo.makeChild(fileName, file.IsDir); err != nil {
+			return err
+		}
+		//fmt.Println(src.Path, file.Path, file.Name, newInfo.Path, newInfo.Name)
+		if !file.IsDir {
+			if saveFileMultiple {
+				// 真实保存,拷贝文件
+				files, _ := filePtr.MD5Files[file.FileMD5]
+				if _, err := CopyFile(files.Ptr[0], newInfo.AbsPath); err != nil {
+					return err
+				}
+			}
+
+			newInfo.FileSize = file.FileSize
+			newInfo.FileMD5 = file.FileMD5
+		}
+		dirInfo.FileInfos[newInfo.Name] = newInfo
+
+		return nil
+	})
 }
 
 // 遍历info 包含自己
@@ -247,6 +293,7 @@ func walk(info *fileInfo, f func(file *fileInfo) error) (err error) {
 }
 
 func loadFilePath(filePath string) {
+	filePath = path.Clean(filePath)
 	_ = os.MkdirAll(filePath, os.ModePerm)
 	dirPrefix, _ := path.Split(filePath)
 	filePtr = &fileInfos{
@@ -264,8 +311,8 @@ func loadFilePath(filePath string) {
 		if err != nil {
 			return err
 		}
-		fmt.Println(absPath, f.Name(), f.ModTime(), f.IsDir(), f.Size())
 		relativePath := strings.TrimPrefix(absPath, dirPrefix)
+		fmt.Println(dirPrefix, relativePath, absPath, f.Name(), f.ModTime(), f.IsDir(), f.Size())
 		if !f.IsDir() {
 			// 是文件
 
@@ -280,7 +327,7 @@ func loadFilePath(filePath string) {
 					return e
 				}
 				dir, file := path.Split(relativePath)
-				dirInfo, _ := findDir(dir, true)
+				dirInfo, _ := filePtr.FileInfo.findDir(dir, true)
 				if fileInfo, err := dirInfo.makeChild(file, false); err != nil {
 					return err
 				} else {
@@ -292,7 +339,7 @@ func loadFilePath(filePath string) {
 				}
 			}
 		} else {
-			dirInfo, _ := findDir(relativePath, true)
+			dirInfo, _ := filePtr.FileInfo.findDir(relativePath, true)
 			dirInfo.ModeTime = f.ModTime().Format(timeFormat)
 		}
 

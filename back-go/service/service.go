@@ -19,6 +19,7 @@ var (
 
 func Launch() {
 	taskQueue = task.NewTaskPool(1, 1024)
+	saveFileMultiple = config.SaveFileMultiple
 
 	loadFilePath(config.FilePath)
 
@@ -203,10 +204,9 @@ func initHandler(app *gin.Engine) {
 	fileGroup := app.Group("/file")
 	fileGroup.POST("/list", WarpHandle(fileHandle.list))
 	fileGroup.POST("/download", WarpHandle(fileHandle.download))
-	fileGroup.POST("/delete", WarpHandle(fileHandle.delete))
+	fileGroup.POST("/remove", WarpHandle(fileHandle.remove))
 	fileGroup.POST("/rename", WarpHandle(fileHandle.rename))
-	fileGroup.POST("/copy", WarpHandle(fileHandle.copy))
-	fileGroup.POST("/move", WarpHandle(fileHandle.move))
+	fileGroup.POST("/mvcp", WarpHandle(fileHandle.mvcp))
 
 	uploadHandle := new(uploadHandler)
 	uploadGroup := app.Group("/upload")

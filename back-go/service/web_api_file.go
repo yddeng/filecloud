@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 )
 
 type fileListData struct {
@@ -28,7 +29,7 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 	logger.Infof("%s %v", wait.GetRoute(), req)
 	defer func() { wait.Done() }()
 
-	info, err := findDir(req.Path, false)
+	info, err := filePtr.FileInfo.findDir(req.Path, false)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
@@ -58,7 +59,7 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 	})
 }
 
-func (*fileHandler) delete(wait *WaitConn, req struct {
+func (*fileHandler) remove(wait *WaitConn, req struct {
 	Path     string   `json:"path"`
 	Filename []string `json:"filename"`
 }) {
@@ -70,7 +71,7 @@ func (*fileHandler) delete(wait *WaitConn, req struct {
 		return
 	}
 
-	info, err := findDir(req.Path, false)
+	info, err := filePtr.FileInfo.findDir(req.Path, false)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
@@ -97,51 +98,86 @@ func (*fileHandler) rename(wait *WaitConn, req struct {
 		return
 	}
 
-	parent, err := findDir(req.Path, false)
+	if req.OldName == req.NewName {
+		return
+	}
+
+	if strings.Contains(req.NewName, "/") {
+		wait.SetResult("文件名不能含有'/'", nil)
+		return
+	}
+
+	dirInfo, err := filePtr.FileInfo.findDir(req.Path, false)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
 	}
 
-	info, ok := parent.FileInfos[req.OldName]
+	srcInfo, ok := dirInfo.FileInfos[req.OldName]
 	if !ok {
 		wait.SetResult("文件不存在", nil)
 		return
 	}
 
-	info.Name = req.NewName
-	info.Path = path.Join(parent.Path, parent.Name)
-	info.AbsPath = path.Join(parent.AbsPath, info.Name)
+	if err = copy2(srcInfo, dirInfo, req.NewName); err != nil {
+		wait.SetResult(err.Error(), nil)
+		return
+	}
 
-	delete(parent.FileInfos, req.OldName)
-	parent.FileInfos[req.NewName] = info
+	// 移除原文件
+	_ = remove(dirInfo, req.OldName)
 
 }
 
-func (*fileHandler) copy(wait *WaitConn, req struct {
-	SrcPath  string `json:"srcPath"`
-	DestPath string `json:"destPath"`
+// 移动、复制 文件或文件夹
+func (*fileHandler) mvcp(wait *WaitConn, req struct {
+	Source []string `json:"source"`
+	Target string   `json:"target"`
+	Move   bool     `json:"move"`
 }) {
 	logger.Infof("%s %v", wait.GetRoute(), req)
 	defer func() { wait.Done() }()
 
-	if req.SrcPath == "" || req.DestPath == "" {
+	if len(req.Source) == 0 || req.Target == "" {
 		wait.SetResult("请求参数错误!", nil)
 		return
 	}
 
-}
-
-func (*fileHandler) move(wait *WaitConn, req struct {
-	SrcPath  string `json:"srcPath"`
-	DestPath string `json:"destPath"`
-}) {
-	logger.Infof("%s %v", wait.GetRoute(), req)
-	defer func() { wait.Done() }()
-
-	if req.SrcPath == "" || req.DestPath == "" {
-		wait.SetResult("请求参数错误!", nil)
+	tarDir, err := filePtr.FileInfo.findDir(req.Target, false)
+	if err != nil {
+		wait.SetResult(err.Error(), nil)
 		return
+	}
+
+	for _, source := range req.Source {
+		// 不能移动到自身或子目录下
+		if strings.Contains(req.Target, source) {
+			wait.SetResult("不能移动文件夹到自身目录或子目录", nil)
+			return
+		}
+
+		srcPath, srcName := path.Split(source)
+		srcDir, err := filePtr.FileInfo.findDir(srcPath, false)
+		if err != nil {
+			wait.SetResult(err.Error(), nil)
+			return
+		}
+
+		srcInfo, ok := srcDir.FileInfos[srcName]
+		if !ok {
+			wait.SetResult("文件不存在", nil)
+			return
+		}
+
+		if err = copy2(srcInfo, tarDir, srcInfo.Name); err != nil {
+			wait.SetResult(err.Error(), nil)
+			return
+		}
+
+		if req.Move {
+			// 移除原文件
+			_ = remove(srcDir, srcName)
+		}
 	}
 
 }
@@ -155,7 +191,7 @@ func (*fileHandler) download(wait *WaitConn, req struct {
 
 	w := wait.Context().Writer
 
-	info, err := findDir(req.Path, false)
+	info, err := filePtr.FileInfo.findDir(req.Path, false)
 	if err != nil {
 		logger.Error(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -172,7 +208,7 @@ func (*fileHandler) download(wait *WaitConn, req struct {
 	}
 
 	absPath := file.AbsPath
-	if !config.SaveFileMultiple {
+	if !saveFileMultiple {
 		// 虚拟保存，修正到真实文件路径
 		md5File_, ok := filePtr.MD5Files[file.FileMD5]
 		if !ok {
