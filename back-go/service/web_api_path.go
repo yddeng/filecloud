@@ -15,7 +15,7 @@ func (*pathHandler) mkdir(wait *WaitConn, req struct {
 		return
 	}
 
-	_, err := filePtr.findPath(req.Path, true)
+	_, err := findDir(req.Path, true)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return

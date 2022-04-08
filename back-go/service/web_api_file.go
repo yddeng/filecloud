@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 )
 
 type fileListData struct {
@@ -27,7 +28,7 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 	logger.Infof("%s %v", wait.GetRoute(), req)
 	defer func() { wait.Done() }()
 
-	info, err := filePtr.findPath(req.Path, false)
+	info, err := findDir(req.Path, false)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
@@ -36,11 +37,11 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 	items := make([]*item, 0, len(info.FileInfos))
 	for _, info := range info.FileInfos {
 		// 正在上传中的文件不同步
-		if info.IsDir || info.FileOk {
+		if info.IsDir || info.FileUpload == nil {
 			_item := &item{
 				Filename: info.Name,
 				IsDir:    info.IsDir,
-				Date:     info.FileDate,
+				Date:     info.ModeTime,
 			}
 			if info.IsDir {
 				_item.Size = "-"
@@ -69,18 +70,80 @@ func (*fileHandler) delete(wait *WaitConn, req struct {
 		return
 	}
 
-	info, err := filePtr.findPath(req.Path, false)
+	info, err := findDir(req.Path, false)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
 	}
 
 	for _, filename := range req.Filename {
-		if err = filePtr.remove(info, filename); err != nil {
+		if err = remove(info, filename); err != nil {
 			wait.SetResult(err.Error(), nil)
 			return
 		}
 	}
+}
+
+func (*fileHandler) rename(wait *WaitConn, req struct {
+	Path    string `json:"path"`
+	OldName string `json:"oldName"`
+	NewName string `json:"newName"`
+}) {
+	logger.Infof("%s %v", wait.GetRoute(), req)
+	defer func() { wait.Done() }()
+
+	if req.Path == "" || req.OldName == "" || req.NewName == "" {
+		wait.SetResult("请求参数错误!", nil)
+		return
+	}
+
+	parent, err := findDir(req.Path, false)
+	if err != nil {
+		wait.SetResult(err.Error(), nil)
+		return
+	}
+
+	info, ok := parent.FileInfos[req.OldName]
+	if !ok {
+		wait.SetResult("文件不存在", nil)
+		return
+	}
+
+	info.Name = req.NewName
+	info.Path = path.Join(parent.Path, parent.Name)
+	info.AbsPath = path.Join(parent.AbsPath, info.Name)
+
+	delete(parent.FileInfos, req.OldName)
+	parent.FileInfos[req.NewName] = info
+
+}
+
+func (*fileHandler) copy(wait *WaitConn, req struct {
+	SrcPath  string `json:"srcPath"`
+	DestPath string `json:"destPath"`
+}) {
+	logger.Infof("%s %v", wait.GetRoute(), req)
+	defer func() { wait.Done() }()
+
+	if req.SrcPath == "" || req.DestPath == "" {
+		wait.SetResult("请求参数错误!", nil)
+		return
+	}
+
+}
+
+func (*fileHandler) move(wait *WaitConn, req struct {
+	SrcPath  string `json:"srcPath"`
+	DestPath string `json:"destPath"`
+}) {
+	logger.Infof("%s %v", wait.GetRoute(), req)
+	defer func() { wait.Done() }()
+
+	if req.SrcPath == "" || req.DestPath == "" {
+		wait.SetResult("请求参数错误!", nil)
+		return
+	}
+
 }
 
 func (*fileHandler) download(wait *WaitConn, req struct {
@@ -92,7 +155,7 @@ func (*fileHandler) download(wait *WaitConn, req struct {
 
 	w := wait.Context().Writer
 
-	info, err := filePtr.findPath(req.Path, false)
+	info, err := findDir(req.Path, false)
 	if err != nil {
 		logger.Error(err)
 		w.WriteHeader(http.StatusBadRequest)

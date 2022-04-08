@@ -8,46 +8,50 @@ type uploadHandler struct {
 }
 
 func (*uploadHandler) check(wait *WaitConn, req struct {
-	Path     string            `json:"path"`
-	Filename string            `json:"filename"`
-	MD5      string            `json:"md5"`
-	Size     int               `json:"size"`
-	SliceMd5 map[string]string `json:"sliceMd5"`
+	Path       string `json:"path"`
+	Filename   string `json:"filename"`
+	MD5        string `json:"md5"`
+	Size       int    `json:"size"`
+	SliceTotal int    `json:"sliceTotal"`
+	SliceSize  int    `json:"sliceSize"`
 }) {
 	logger.Infof("%s %v", wait.GetRoute(), req)
 	defer func() { wait.Done() }()
 
-	if req.Path == "" || req.Filename == "" || req.MD5 == "" || req.Size == 0 || len(req.SliceMd5) == 0 {
+	if req.Path == "" || req.Filename == "" || req.MD5 == "" || req.Size == 0 || req.SliceTotal == 0 || req.SliceSize == 0 {
 		wait.SetResult("请求参数错误", nil)
 		return
 	}
 
-	info, err := filePtr.findPath(req.Path, true)
+	info, err := findDir(req.Path, true)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
 	}
 
 	up := &upload{
-		Size:     int64(req.Size),
-		MD5:      req.MD5,
-		SliceCnt: len(req.SliceMd5),
-		UpSlice:  map[string]string{},
+		Md5:        req.MD5,
+		Size:       req.Size,
+		SliceSize:  req.SliceSize,
+		Total:      req.SliceTotal,
+		ExistSlice: map[string]int64{},
+		Token:      nowFormat(),
 	}
 
 	resp := struct {
-		Need       bool              `json:"need"` // 需要上传,不需要上传
-		ExistSlice map[string]string `json:"existSlice"`
+		Need       bool             `json:"need"` // 需要上传,不需要上传
+		Token      string           `json:"token"`
+		ExistSlice map[string]int64 `json:"existSlice"`
 	}{}
 
 	absPath := path.Join(info.AbsPath, req.Filename)
 	file, ok := info.FileInfos[req.Filename]
 	if !ok {
-		newInfo := &fileInfo{
-			Path:    path.Join(info.Path, info.Name),
-			Name:    req.Filename,
-			AbsPath: absPath,
-			FileMD5: req.MD5,
+		newInfo, err := info.makeChild(req.Filename, false)
+		if err != nil {
+			logger.Error(err)
+			wait.SetResult(err.Error(), nil)
+			return
 		}
 
 		files, md5Ok := filePtr.MD5Files[req.MD5]
@@ -61,87 +65,62 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 					return
 				}
 			}
-			newInfo.FileOk = true
-			newInfo.FileSize = files.Size
-			newInfo.FileDate = nowFormat()
-			info.FileInfos[newInfo.Name] = newInfo
-			filePtr.addMD5File(newInfo.FileMD5, newInfo)
+			newInfo.FileSize = int64(req.Size)
+			newInfo.FileMD5 = req.MD5
 
+			addMD5File(newInfo.FileMD5, newInfo)
 			resp.Need = false
-			wait.SetResult("", resp)
 
 		} else {
 			// 不存在md5文件，新建
-			newInfo.Upload = up
-			info.FileInfos[newInfo.Name] = newInfo
-
+			newInfo.FileUpload = up
 			resp.Need = true
-			wait.SetResult("", resp)
+			resp.Token = up.Token
 		}
+
+		info.FileInfos[newInfo.Name] = newInfo
+		wait.SetResult("", resp)
 	} else {
 		if file.IsDir {
 			wait.SetResult("已存在同名文件夹", nil)
 			return
 		}
-		if file.FileMD5 != req.MD5 {
-			// 原文件已经改变，需要上传
-			if file.Upload == nil {
-				file.Upload = up
+
+		if file.FileUpload != nil {
+			// 文件正在上传
+
+			if file.FileUpload.Md5 != req.MD5 {
+				// 上传不同内容的同名文件，拒绝
+				wait.SetResult("正在上传同名文件", nil)
+				return
+			} else {
+				// 内容相同，上传了一部分
+				// 存在两处同时上传，但分片大小不同，导致相互覆盖
+				if file.FileUpload.SliceSize != req.SliceSize {
+					// 分片大小不同，拒绝
+					wait.SetResult("正在上传同名文件", nil)
+					return
+				}
 
 				resp.Need = true
+				resp.Token = file.FileUpload.Token
+				resp.ExistSlice = file.FileUpload.ExistSlice
 				wait.SetResult("", resp)
-			} else {
-				if file.Upload.MD5 == req.MD5 {
-					// 新文件已经上传了一部分
-					//file.mergeUpload()
-
-					for i, sliceMd5 := range req.SliceMd5 {
-						if existSliceMd5, ok := file.Upload.UpSlice[i]; ok && existSliceMd5 != sliceMd5 {
-							// 不一致
-							delete(file.Upload.UpSlice, i)
-						}
-					}
-
-					resp.Need = true
-					resp.ExistSlice = file.Upload.UpSlice
-					wait.SetResult("", resp)
-				} else {
-					// 新文件没有上传完，但又上传不同md5文件
-					file.clearUpload()
-
-					resp.Need = true
-					wait.SetResult("", resp)
-				}
 			}
+
 		} else {
-			if file.Upload == nil {
+			if file.FileMD5 == req.MD5 {
 				// 已经上传完成,不需要上传
 				resp.Need = false
-				wait.SetResult("", resp)
 			} else {
-				if file.Upload.MD5 == req.MD5 {
-					// 新文件已经上传了一部分
-					for i, sliceMd5 := range req.SliceMd5 {
-						if existSliceMd5, ok := file.Upload.UpSlice[i]; ok && existSliceMd5 != sliceMd5 {
-							// 不一致
-							delete(file.Upload.UpSlice, i)
-						}
-					}
-					resp.Need = true
-					resp.ExistSlice = file.Upload.UpSlice
-					wait.SetResult("", resp)
-				} else {
-					// 新文件没有上传完，但又上传不同md5文件
-					file.clearUpload()
-					file.Upload = up
-
-					resp.Need = true
-					wait.SetResult("", resp)
-				}
+				file.FileUpload = up
+				resp.Need = true
+				resp.Token = up.Token
 			}
+			wait.SetResult("", resp)
 		}
-	}
 
+	}
 }
 
 func (*uploadHandler) upload(wait *WaitConn) {
@@ -151,25 +130,24 @@ func (*uploadHandler) upload(wait *WaitConn) {
 	ctx := wait.Context()
 	filePath := ctx.PostForm("path")
 	filename := ctx.PostForm("filename")
-	md5 := ctx.PostForm("md5")
+	token := ctx.PostForm("token")
 	current := ctx.PostForm("current")
-	sliceMd5 := ctx.PostForm("sliceMd5")
 
-	logger.Infof("%s %s %s %s %s %s", wait.GetRoute(), filePath, filename, md5, current, sliceMd5)
+	logger.Infof("%s %s %s %s %s", wait.GetRoute(), filePath, filename, current, token)
 
-	info, err := filePtr.findPath(filePath, false)
+	info, err := findDir(filePath, false)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)
 		return
 	}
 
 	file, ok := info.FileInfos[filename]
-	if !ok || file.Upload == nil || file.Upload.MD5 != md5 {
+	if !ok || file.FileUpload == nil || file.FileUpload.Token != token {
 		wait.SetResult("上传流程错误，check！", nil)
 		return
 	}
 
-	_, ok = file.Upload.UpSlice[current]
+	_, ok = file.FileUpload.ExistSlice[current]
 	if ok {
 		// 当前分片已经上传
 		return
@@ -194,7 +172,7 @@ func (*uploadHandler) upload(wait *WaitConn) {
 		return
 	}
 
-	file.Upload.UpSlice[current] = sliceMd5
+	file.FileUpload.ExistSlice[current] = gFile.Size
 	file.mergeUpload()
 
 }

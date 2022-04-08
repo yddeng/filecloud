@@ -25,28 +25,46 @@ type md5File struct {
 }
 
 type fileInfo struct {
-	Path      string               `json:"path"`           // 相对路径
-	Name      string               `json:"name,omitempty"` // 名字
-	AbsPath   string               `json:"absPath"`        // 绝对路径
-	IsDir     bool                 `json:"isDir,omitempty"`
-	FileOk    bool                 `json:"fileOk"`    // 当前文件是否已经写入
-	FileSize  int64                `json:"fileSize"`  // 文件有值
-	FileMD5   string               `json:"fileMd5"`   // 文件有值
-	FileDate  string               `json:"fileDate"`  // 文件有值
-	FileInfos map[string]*fileInfo `json:"fileInfos"` // 文件夹有值
-	Upload    *upload
+	Path       string               `json:"path"`           // 相对路径
+	Name       string               `json:"name,omitempty"` // 名字
+	AbsPath    string               `json:"absPath"`        // 绝对路径
+	IsDir      bool                 `json:"isDir,omitempty"`
+	ModeTime   string               `json:"modeTime"`
+	FileSize   int64                `json:"fileSize"`  // 文件有值。有值表示存在文件，无值说明正在上传
+	FileMD5    string               `json:"fileMd5"`   // 文件有值。有值表示存在文件，无值说明正在上传
+	FileInfos  map[string]*fileInfo `json:"fileInfos"` // 文件夹有值
+	FileUpload *upload              `json:"_"`         // 文件上传零时数据
 }
 
 type upload struct {
-	Size     int64             `json:"size,omitempty"` // 文件有值
-	MD5      string            `json:"md5,omitempty"`  // 文件有值
-	SliceCnt int               `json:"slice_cnt"`      // 文件有值，文件上传时总文件数。
-	UpSlice  map[string]string `json:"up_slice"`       // 文件有值，文件上传时，已经上传的分片
+	Md5        string           `json:"md5"`        // 文件上传时的md5值
+	Size       int              `json:"size"`       // 文件总大小
+	SliceSize  int              `json:"sliceSize"`  // 上传的分片大小
+	Total      int              `json:"total"`      // 文件上传时分片总数
+	ExistSlice map[string]int64 `json:"existSlice"` // 文件上传时，已经上传的分片
+	Token      string           `json:"token"`      // 上传时需要验证token
+}
+
+func (this *fileInfo) makeChild(name string, isDir bool) (*fileInfo, error) {
+	info := &fileInfo{
+		Path:     path.Join(this.Path, this.Name),
+		Name:     name,
+		AbsPath:  path.Join(this.AbsPath, name),
+		IsDir:    isDir,
+		ModeTime: nowFormat(),
+	}
+	if isDir {
+		info.FileInfos = map[string]*fileInfo{}
+		if err := os.MkdirAll(info.AbsPath, os.ModePerm); err != nil {
+			return nil, err
+		}
+	}
+	return info, nil
 }
 
 func (this *fileInfo) clearUpload() {
-	if this.Upload != nil {
-		for part := range this.Upload.UpSlice {
+	if this.FileUpload != nil {
+		for part := range this.FileUpload.ExistSlice {
 			filename := makeFilePart(this.AbsPath, part)
 			_ = os.RemoveAll(filename)
 		}
@@ -54,10 +72,7 @@ func (this *fileInfo) clearUpload() {
 }
 
 func (this *fileInfo) mergeUpload() {
-	if this.Upload == nil {
-		return
-	}
-	if this.Upload.SliceCnt != len(this.Upload.UpSlice) {
+	if this.FileUpload == nil || this.FileUpload.Total != len(this.FileUpload.ExistSlice) {
 		return
 	}
 	f, err := os.Create(this.AbsPath)
@@ -66,7 +81,7 @@ func (this *fileInfo) mergeUpload() {
 	}
 	defer f.Close()
 
-	for i := 0; i < this.Upload.SliceCnt; i++ {
+	for i := 0; i < this.FileUpload.Total; i++ {
 		partFile := makeFilePart(this.AbsPath, strconv.Itoa(i))
 		pf, err := os.Open(partFile)
 		if err != nil {
@@ -81,19 +96,21 @@ func (this *fileInfo) mergeUpload() {
 	}
 
 	this.clearUpload()
-	filePtr.removeMD5File(this.FileMD5, this.AbsPath)
+	if this.FileMD5 != "" {
+		// 移除原文件
+		removeMD5File(this.FileMD5, this.AbsPath)
+	}
 
-	this.FileOk = true
-	this.FileSize = this.Upload.Size
-	this.FileMD5 = this.Upload.MD5
-	this.FileDate = nowFormat()
-	this.Upload = nil
+	this.FileMD5 = this.FileUpload.Md5
+	this.FileSize = int64(this.FileUpload.Size)
+	this.ModeTime = nowFormat()
+	this.FileUpload = nil
 
-	filePtr.addMD5File(this.FileMD5, this)
+	addMD5File(this.FileMD5, this)
 }
 
-func (this *fileInfos) addMD5File(md5 string, info *fileInfo) {
-	files, ok := this.MD5Files[md5]
+func addMD5File(md5 string, info *fileInfo) {
+	files, ok := filePtr.MD5Files[md5]
 	if !ok {
 		files = &md5File{
 			File: info.AbsPath,
@@ -101,14 +118,14 @@ func (this *fileInfos) addMD5File(md5 string, info *fileInfo) {
 			Size: info.FileSize,
 			Ptr:  []string{},
 		}
-		this.MD5Files[md5] = files
+		filePtr.MD5Files[md5] = files
 	}
 	files.Ptr = append(files.Ptr, info.AbsPath)
 }
 
-func (this *fileInfos) removeMD5File(md5, ptr string) {
+func removeMD5File(md5, ptr string) {
 	// 删除md5指向
-	files, ok := this.MD5Files[md5]
+	files, ok := filePtr.MD5Files[md5]
 	if ok {
 		idx := -1
 		for i := 0; i < len(files.Ptr); i++ {
@@ -120,14 +137,14 @@ func (this *fileInfos) removeMD5File(md5, ptr string) {
 		if idx != -1 {
 			files.Ptr = append(files.Ptr[:idx], files.Ptr[idx+1:]...)
 			if len(files.Ptr) == 0 {
-				delete(this.MD5Files, md5)
+				delete(filePtr.MD5Files, md5)
 			}
 		}
 	}
 }
 
 // 文件删除，
-func (this *fileInfos) remove(parent *fileInfo, name string) error {
+func remove(parent *fileInfo, name string) error {
 	info, ok := parent.FileInfos[name]
 	if !ok {
 		return fmt.Errorf("%s 文件不存在", name)
@@ -147,7 +164,7 @@ func (this *fileInfos) remove(parent *fileInfo, name string) error {
 		}
 
 		// 删除md5指向
-		this.removeMD5File(file.FileMD5, file.AbsPath)
+		removeMD5File(file.FileMD5, file.AbsPath)
 		// 清理上传的分片
 		file.clearUpload()
 
@@ -160,7 +177,7 @@ func (this *fileInfos) remove(parent *fileInfo, name string) error {
 	delete(parent.FileInfos, info.Name)
 
 	if !config.SaveFileMultiple {
-		// 如果文件夹中包含源文件需要拷贝到他处
+		// 文件夹中包含源文件需要拷贝到他处
 		for md5 := range delMd5 {
 			md5File_, ok := filePtr.MD5Files[md5]
 			if ok {
@@ -179,28 +196,22 @@ func (this *fileInfos) remove(parent *fileInfo, name string) error {
 	return nil
 }
 
-func (this *fileInfos) findPath(filePath string, mkdir bool) (*fileInfo, error) {
+// 查找目录，忽略了第一层级目录
+func findDir(filePath string, mkdir bool) (*fileInfo, error) {
 	paths := splitPath(filePath)
 
 	info := filePtr.FileInfo
 	for i := 1; i < len(paths); i++ {
-		dname := paths[i]
-		cInfo, ok := info.FileInfos[dname]
+		dirName := paths[i]
+		cInfo, ok := info.FileInfos[dirName]
 		if ok {
 			if !cInfo.IsDir {
 				return nil, fmt.Errorf("已存在同名文件")
 			}
 		} else {
 			if mkdir {
-				cInfo = &fileInfo{
-					Path:      path.Join(info.Path, info.Name),
-					Name:      dname,
-					AbsPath:   path.Join(info.AbsPath, dname),
-					IsDir:     true,
-					FileInfos: map[string]*fileInfo{},
-					FileDate:  nowFormat(),
-				}
-				if err := os.MkdirAll(path.Join(cInfo.Path, cInfo.Name), os.ModePerm); err != nil {
+				var err error
+				if cInfo, err = info.makeChild(dirName, true); err != nil {
 					return nil, err
 				}
 				info.FileInfos[cInfo.Name] = cInfo
@@ -213,14 +224,15 @@ func (this *fileInfos) findPath(filePath string, mkdir bool) (*fileInfo, error) 
 	return info, nil
 }
 
-// 遍历info，调用文件
+// 遍历info 包含自己
 func walk(info *fileInfo, f func(file *fileInfo) error) (err error) {
 	if info == nil {
 		return
 	}
-	if !info.IsDir {
-		return f(info)
+	if err = f(info); err != nil {
+		return
 	}
+
 	for _, cInfo := range info.FileInfos {
 		if cInfo.IsDir {
 			err = walk(cInfo, f)
@@ -235,12 +247,12 @@ func walk(info *fileInfo, f func(file *fileInfo) error) (err error) {
 }
 
 func loadFilePath(filePath string) {
-	_ = os.MkdirAll(config.FilePath, os.ModePerm)
-	sdir, dname := path.Split(filePath)
+	_ = os.MkdirAll(filePath, os.ModePerm)
+	dirPrefix, _ := path.Split(filePath)
 	filePtr = &fileInfos{
 		FileInfo: &fileInfo{
 			Path:      "",
-			Name:      dname,
+			Name:      "cloud",
 			AbsPath:   filePath,
 			IsDir:     true,
 			FileInfos: map[string]*fileInfo{},
@@ -252,8 +264,8 @@ func loadFilePath(filePath string) {
 		if err != nil {
 			return err
 		}
-
-		relativePath := strings.TrimPrefix(absPath, sdir)
+		fmt.Println(absPath, f.Name(), f.ModTime(), f.IsDir(), f.Size())
+		relativePath := strings.TrimPrefix(absPath, dirPrefix)
 		if !f.IsDir() {
 			// 是文件
 
@@ -268,22 +280,20 @@ func loadFilePath(filePath string) {
 					return e
 				}
 				dir, file := path.Split(relativePath)
-				info, _ := filePtr.findPath(dir, true)
-				fInfo := &fileInfo{
-					Path:     path.Join(info.Path, info.Name),
-					Name:     file,
-					AbsPath:  path.Join(info.AbsPath, file),
-					IsDir:    false,
-					FileSize: f.Size(),
-					FileMD5:  md5,
-					FileDate: f.ModTime().Format(timeFormat),
-					FileOk:   true,
+				dirInfo, _ := findDir(dir, true)
+				if fileInfo, err := dirInfo.makeChild(file, false); err != nil {
+					return err
+				} else {
+					fileInfo.FileSize = f.Size()
+					fileInfo.FileMD5 = md5
+					fileInfo.ModeTime = f.ModTime().Format(timeFormat)
+					dirInfo.FileInfos[file] = fileInfo
+					addMD5File(md5, fileInfo)
 				}
-				info.FileInfos[file] = fInfo
-				filePtr.addMD5File(md5, fInfo)
 			}
 		} else {
-			_, _ = filePtr.findPath(relativePath, true)
+			dirInfo, _ := findDir(relativePath, true)
+			dirInfo.ModeTime = f.ModTime().Format(timeFormat)
 		}
 
 		return nil

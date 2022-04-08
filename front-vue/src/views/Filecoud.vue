@@ -33,7 +33,7 @@
           <a-button-group >
             <a-button icon="download" >下载</a-button>
             <a-button icon="delete" @click="handleDelete">删除</a-button>
-            <a-button icon="form" >重命名</a-button>
+            <a-button icon="form" v-show="this.actionFiles.length === 1">重命名</a-button>
             <a-button icon="copy" >复制</a-button>
             <a-button icon="drag" >移动</a-button>
           </a-button-group>

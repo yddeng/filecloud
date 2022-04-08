@@ -204,6 +204,9 @@ func initHandler(app *gin.Engine) {
 	fileGroup.POST("/list", WarpHandle(fileHandle.list))
 	fileGroup.POST("/download", WarpHandle(fileHandle.download))
 	fileGroup.POST("/delete", WarpHandle(fileHandle.delete))
+	fileGroup.POST("/rename", WarpHandle(fileHandle.rename))
+	fileGroup.POST("/copy", WarpHandle(fileHandle.copy))
+	fileGroup.POST("/move", WarpHandle(fileHandle.move))
 
 	uploadHandle := new(uploadHandler)
 	uploadGroup := app.Group("/upload")
