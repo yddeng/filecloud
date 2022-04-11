@@ -91,12 +91,12 @@
       <a-icon type="file" v-else/>
       &nbsp;&nbsp;
       <template v-if="addFolder && index === 0">
-          <a-input v-model="addFolderName"  style="width:50%"/>&nbsp;
+          <a-input v-model="addFolderName" ref="addFolderInputRef" style="width:50%" @keyup.enter="handleAddFolderOK"/>&nbsp;
           <a-button icon="check" type="primary" size="small" @click="handleAddFolderOK"/>&nbsp;
           <a-button icon="close" type="primary" size="small" @click="handleAddFolderCancle"/>
       </template>
       <template v-else-if="renameIndex === index">
-          <a-input v-model="renameValue"  style="width:50%"/>&nbsp;
+          <a-input v-model="renameValue" ref="renameInputRef" style="width:50%" @keyup.enter="handleRenameOK"/>&nbsp;
           <a-button icon="check" type="primary" size="small" @click="handleRenameOK"/>&nbsp;
           <a-button icon="close" type="primary" size="small" @click="handleRenameCancle"/>
       </template>
@@ -261,15 +261,20 @@ export default {
       }
     },
     openAddFolder(){
-      const newRow = {
-        filename:"",
-        isDir:true,
-        date:"",
-        size:"-",
+      if (!this.addFolder){
+        const newRow = {
+          filename:"",
+          isDir:true,
+          date:"",
+          size:"-",
+        }
+        this.addFolder = true
+        this.addFolderName = ""
+        this.table.items = [newRow,...this.table.items]
+        this.$nextTick(()=>{
+          this.$refs.addFolderInputRef.focus()
+        })
       }
-      this.addFolder = true
-      this.addFolderName = ""
-      this.table.items = [newRow,...this.table.items]
     },
     handleAddFolderOK(){
       //console.log(this.addFolder,this.addFolderName);
@@ -405,6 +410,9 @@ export default {
         }
         this.renameIndex = this.selectedRowKeys[0]
         this.renameValue = this.selectedNames[0]
+        this.$nextTick(()=>{
+          this.$refs.renameInputRef.focus()
+        })
       }
       
     },

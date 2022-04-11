@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { VueAxios } from './axios'
-import notification from 'ant-design-vue/es/notification'
+import message from 'ant-design-vue/es/message'
 import { target } from '@/config/config'
 
 // 创建 axios 实例
@@ -23,10 +23,7 @@ request.interceptors.request.use(config => {
 // response interceptor
 request.interceptors.response.use((response) => {
   if (!response.data.success) { // 成功
-    notification.error({
-      message: '请求出错',
-      description: response.data.message
-    })
+    message.error(response.data.message);
     return Promise.reject(response)
   } else {
     return response.data.data

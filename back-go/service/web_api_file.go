@@ -150,16 +150,16 @@ func (*fileHandler) mvcp(wait *WaitConn, req struct {
 	}
 
 	for _, source := range req.Source {
-		// 不能移动到自身或子目录下
-		if strings.Contains(req.Target, source) {
-			wait.SetResult("不能移动文件夹到自身目录或子目录", nil)
-			return
-		}
-
 		srcPath, srcName := path.Split(source)
 		srcDir, err := filePtr.FileInfo.findDir(srcPath, false)
 		if err != nil {
 			wait.SetResult(err.Error(), nil)
+			return
+		}
+
+		// 不能移动到自身或子目录下
+		if strings.Contains(tarDir.AbsPath, srcDir.AbsPath) {
+			wait.SetResult("不能移动文件夹到自身目录或子目录", nil)
 			return
 		}
 
