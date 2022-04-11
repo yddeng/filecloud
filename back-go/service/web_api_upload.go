@@ -97,6 +97,13 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 					return
 				}
 
+				// 判断分片完整性
+				for idx, size := range file.FileUpload.ExistSlice {
+					if size != int64(req.SliceSize) {
+						delete(file.FileUpload.ExistSlice, idx)
+					}
+				}
+
 				resp.Need = true
 				resp.Token = file.FileUpload.Token
 				resp.ExistSlice = file.FileUpload.ExistSlice

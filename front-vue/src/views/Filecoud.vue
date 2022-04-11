@@ -1,8 +1,6 @@
 <template>
  <div class="body">
   <div id="header">
-    <a-row justify="space-between" type="flex">
-      <a-col>
         <template v-if="this.selectedNames.length === 0">
           <a-upload 
           ref="upload"
@@ -38,24 +36,6 @@
             <a-button icon="drag" @click="openMvcpModal(true)">移动</a-button>
           </a-button-group>
         </template>
-      </a-col>
-      <a-col style="padding-right:200px">
-        <a-popconfirm >
-          <template slot="title">
-          <br/>
-            <div style="width:200px">
-
-              test
-              <a-button>test</a-button>
-            </div>
-          </template>
-          <template slot="footer"></template>
-          <a-icon type="swap" :rotate="90" @click="handleTransfer"/> 
-        </a-popconfirm>
-        
-      </a-col>
-    </a-row>
-     
   </div>
 
   <div class="path">
@@ -107,6 +87,35 @@
     </template>
   </a-table>
 
+  
+  <div 
+  id="upload_div"
+  v-show="showTransfer">
+    <div style="height: 48px;border-bottom: 2px solid #f6f6f6;">
+      <a-row justify="space-between" type="flex" style="line-height:40px">
+        <a-col style="font-size:16px">上传列表</a-col>
+        <a-col style="padding-right:20px">
+        <a-icon v-if="this.showTransferUploadList" type="down-circle" @click="()=>{ this.showTransferUploadList = false}"/>
+        <a-icon v-else type="up-circle" @click="()=>{ this.showTransferUploadList = true}"/>
+        </a-col>
+      </a-row>
+    </div>
+    <div 
+    style="height:350px;overflow-y:auto"
+    v-show="showTransferUploadList">
+      <template v-for="v of this.uploadList">
+        <a-row :key="v.key" style="height:40px;line-height:40px">
+          <a-col :span="6" style="text-overflow:ellipsis;overflow:hidden;white-space:nowrap">{{ v.filename }}</a-col>
+          <a-col :span="17">
+            <a-progress v-if="v.upSize < v.total" :percent="v.upSize / v.total * 100" status="active"  />
+            <a-progress v-else :percent="v.upSize / v.total * 100" status="success"  />
+          </a-col>
+        </a-row>
+      </template>
+    </div>
+  </div>
+  
+
   <a-modal 
   v-model="dirModalVisible" 
   :title="dirModalTitle" 
@@ -134,19 +143,21 @@
         </template>
       </template>
     </div>
-    <a-table 
-    :columns="dirModalColumns" 
-    :data-source="dirModalData"
-    :pagination="false"
-    :showHeader="false"
-    :rowKey="(record,index) => index"
-    >
-    <template slot="name" slot-scope="text">
-      <a-icon type="folder" />
-      &nbsp;&nbsp;
-        <a  href="javascript:;" @click="mvcpGonext(text)">{{text}}</a>
-    </template>
-    </a-table>
+    <div style="height:300px;overflow-y:auto">
+      <a-table 
+      :columns="dirModalColumns" 
+      :data-source="dirModalData"
+      :pagination="false"
+      :showHeader="false"
+      :rowKey="(record,index) => index"
+      >
+      <template slot="name" slot-scope="text">
+        <a-icon type="folder" />
+        &nbsp;&nbsp;
+          <a  href="javascript:;" @click="mvcpGonext(text)">{{text}}</a>
+      </template>
+      </a-table>
+    </div>
   </a-modal>
  </div>
 </template>
@@ -201,6 +212,11 @@ export default {
       mvcpMove:false,
       mvcpSource:[],
       mvcpTarget:"",
+      
+      // 传输列表
+      showTransfer:false,
+      showTransferUploadList:true,
+      uploadList:{},
     }
   },
   mounted () {
@@ -311,7 +327,7 @@ export default {
       })
     },
     handleBeforeUpload(file){
-      console.log(file);
+      // console.log(file);
       // check
 
       const filename = file.name
@@ -330,13 +346,21 @@ export default {
 
       // md5
       this.getFileMd5(file,(fileMd5) => {
+        this.showTransfer = true;
+        this.showTransferUploadList = true;
+        this.uploadList[fileMd5] = {
+          key:fileMd5,
+          filename:filename,
+          total:size,
+          upSize:0,
+          nicePass:false,
+        }
         const args = {path:path,filename:filename,md5:fileMd5,size:size,sliceTotal:total,sliceSize:sliceSize}
         uploadCheck(args).then(ret =>{
           //console.log(ret);
           // 开始上传
           if (ret.need) {
             const token = ret.token
-            let upCount = total
             for (let current = 0;current < total ;current++){
               const index = current.toString()
               if (ret.existSlice === null || !(index in ret.existSlice)){
@@ -352,21 +376,19 @@ export default {
                 fd.append('token', token);
 
                 uploadFile(fd).then(() => {
-                  console.log(index,"ok");
-                  upCount--
-                  if (upCount == 0){
-                    this.getList(this.navs.join("/"))
-                  }
+                  // console.log(index,"ok");
+                  this.updateProgress(fileMd5, end-start,false)
                 })
               }else{
-                upCount--
+                this.updateProgress(fileMd5,sliceSize,false)
               }
             }
+          }else{
+            this.updateProgress(fileMd5,size,true)
           }
         })
 
       })
-
       //console.log(filename,path,size,total);
       return false
     },
@@ -381,6 +403,21 @@ export default {
       };
       
     },
+    updateProgress(key,value,nicePass){
+      const upInfo = this.uploadList[key]
+      upInfo.upSize += value
+      upInfo.nicePass = nicePass
+      if (upInfo && upInfo.upSize >= upInfo.total){
+          //console.log(upInfo);
+          this.getList(this.navs.join("/"))
+      }
+
+      // 页面数据强制刷新
+      this.$forceUpdate();
+    },
+    openTransfer(){
+      this.showTransfer = !this.showTransfer;
+    },
     handleChange(info) {
       console.log(info);
       const status = info.file.status;
@@ -392,9 +429,6 @@ export default {
       } else if (status === 'error') {
         this.$message.error(`${info.file.name} file upload failed.`);
       }
-    },
-    handleTransfer(){
-
     },
     handleRemove(){
       let path = this.navs.join("/")
@@ -505,7 +539,8 @@ export default {
       .finally(()=>{
         this.dirModalVisible = false
       })
-    }
+    },
+    
   },
 
 }
@@ -517,8 +552,33 @@ export default {
 #header{
   height:60px;
   line-height:60px;
+  margin-bottom:10px;
 }
 .path{
-  margin:10px 10px;
+  margin-bottom:10px;
+}
+
+#upload_div{
+  box-shadow: 0 1px 20px rgba(0,0,0,.2);
+  border:2px ;
+  border-radius:4px;
+  padding: 5px 16px;
+  width:600px;
+  position: fixed;
+  bottom: 0;
+  right: 20px;
+  z-index: 1000;
+  background: white;
+}
+
+/* 滚动条宽度 */
+::-webkit-scrollbar {
+ width: 7px;
+ height: 10px;
+}
+/* 滚动条的滑块 */
+::-webkit-scrollbar-thumb {
+ background-color: #a1a3a9;
+ border-radius: 3px;
 }
 </style>
