@@ -20,6 +20,7 @@ var (
 func Launch() {
 	taskQueue = task.NewTaskPool(1, 1024)
 	saveFileMultiple = config.SaveFileMultiple
+	fileDiskTotal = config.FileDiskTotal * 1024 * 1024
 
 	loadFilePath(config.FilePath)
 
@@ -45,6 +46,9 @@ func Launch() {
 
 	port := strings.Split(config.WebAddr, ":")[1]
 	webAddr := fmt.Sprintf("0.0.0.0:%s", port)
+
+	logger.Infof("start web service on %s", config.WebAddr)
+
 	if err := app.Run(webAddr); err != nil {
 		logger.Error(err)
 	}

@@ -29,3 +29,13 @@ func TestRename(t *testing.T) {
 	ret, err := req.ToString()
 	fmt.Println(ret, err)
 }
+
+func TestList(t *testing.T) {
+	elem := map[string]interface{}{
+		"path": "cloud",
+	}
+
+	req, _ := dhttp.PostJson("http://127.0.0.1:9987/file/list", elem)
+	ret, err := req.ToString()
+	fmt.Println(ret, err)
+}

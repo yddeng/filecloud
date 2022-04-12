@@ -1,6 +1,8 @@
 <template>
  <div class="body">
   <div id="header">
+    <a-row justify="space-between" type="flex">
+      <a-col>
         <template v-if="this.selectedNames.length === 0">
           <a-upload 
           ref="upload"
@@ -25,6 +27,7 @@
           <a-button-group >
             <a-button icon="folder-add" @click="openAddFolder">新建文件夹</a-button>
             <a-button icon="download" >离线下载</a-button>
+            <a-button icon="sync" @click="() => { this.goto(this.navs.length-1) }">刷新</a-button>
           </a-button-group>
         </template>
         <template v-else>
@@ -36,6 +39,21 @@
             <a-button icon="drag" @click="openMvcpModal(true)">移动</a-button>
           </a-button-group>
         </template>
+      </a-col>
+      <a-col style="width:300px;margin-right:100px">
+        <a-row >
+          <a-col :span="10">
+            {{ resData.diskUsedStr }} / {{ resData.diskTotalStr }}
+          </a-col>
+          <a-col :span="13">
+            <a-progress v-if="resData.diskUsed < resData.diskTotal" 
+            :stroke-color="progressColor(resData.diskUsed / resData.diskTotal * 100)"
+            :percent="parseFloat((resData.diskUsed / resData.diskTotal * 100).toFixed(1))" />
+            <a-progress v-else :percent="100" stroke-color="red" :show-info="false"/>
+          </a-col>
+        </a-row>
+      </a-col>
+    </a-row>
   </div>
 
   <div class="path">
@@ -61,7 +79,7 @@
 
   <a-table 
   :columns="columns" 
-  :data-source="table.items"
+  :data-source="resData.items"
   :pagination="false"
   :rowKey="(record,index) => index"
   :row-selection="{selectedRowKeys:selectedRowKeys,onChange:onSelectChange}"
@@ -94,7 +112,7 @@
     <div style="height: 48px;border-bottom: 2px solid #f6f6f6;">
       <a-row justify="space-between" type="flex" style="line-height:40px">
         <a-col style="font-size:16px">上传列表</a-col>
-        <a-col style="padding-right:20px">
+        <a-col style="margin-right:20px">
         <a-icon v-if="this.showTransferUploadList" type="down-circle" @click="()=>{ this.showTransferUploadList = false}"/>
         <a-icon v-else type="up-circle" @click="()=>{ this.showTransferUploadList = true}"/>
         </a-col>
@@ -107,7 +125,8 @@
         <a-row :key="v.key" style="height:40px;line-height:40px">
           <a-col :span="6" style="text-overflow:ellipsis;overflow:hidden;white-space:nowrap">{{ v.filename }}</a-col>
           <a-col :span="17">
-            <a-progress v-if="v.upSize < v.total" :percent="v.upSize / v.total * 100" status="active"  />
+            <a-progress v-if="v.upSize < v.total" 
+            :percent="v.upSize / v.total * 100" status="active"  />
             <a-progress v-else :percent="v.upSize / v.total * 100" status="success"  />
           </a-col>
         </a-row>
@@ -186,7 +205,7 @@ export default {
 
       root:"cloud",
       navs :[],
-      table:{},
+      resData:{},
 
       // 新建目录
       addFolder: false,
@@ -239,9 +258,9 @@ export default {
         this.addFolderName = "";
         this.selectedRowKeys = []
         this.selectedNames = []
-        this.table = res;
+        this.resData = res;
         // 排序 目录 > 名字
-        this.table.items.sort((a,b) =>{
+        this.resData.items.sort((a,b) =>{
           if ( !a.isDir && b.isDir){
             return 1
           }else if (a.isDir == b.isDir){
@@ -249,14 +268,13 @@ export default {
           }
           return -1
         })
-        //console.log(this.table);
+       //console.log(res);
       })
     },
     goback(){
       if (this.navs.length > 1) {
         this.navs.pop()
         const path = this.navs.join("/")
-        //console.log(path);
         this.getList(path)
       }
     },
@@ -264,7 +282,6 @@ export default {
       if (dir !== ""){
         this.navs.push(dir)
         const path = this.navs.join("/")
-        //console.log(path);
         this.getList(path)
       }
     },
@@ -272,8 +289,14 @@ export default {
       if (index >= 0 && index < this.navs.length ){
         this.navs.splice(index+1)
         const path = this.navs.join("/")
-        //console.log(path);
         this.getList(path)
+      }
+    },
+    progressColor (percent) {
+      if (percent >= 80) {
+        return 'red'
+      } else if (percent >= 50) {
+        return '#EAC100'
       }
     },
     openAddFolder(){
@@ -286,21 +309,17 @@ export default {
         }
         this.addFolder = true
         this.addFolderName = ""
-        this.table.items = [newRow,...this.table.items]
+        this.resData.items = [newRow,...this.resData.items]
         this.$nextTick(()=>{
           this.$refs.addFolderInputRef.focus()
         })
       }
     },
     handleAddFolderOK(){
-      //console.log(this.addFolder,this.addFolderName);
       if (this.addFolder && this.addFolderName != ""){
         const path = this.navs.join("/") + "/" + this.addFolderName
-        //console.log(path);
         const args = { path:path}
-        //console.log(args);
         mkdir(args).then(() =>{
-          //console.log(res);
           const path = this.navs.join("/")
           this.getList(path)
         })
@@ -310,7 +329,7 @@ export default {
       if (this.addFolder){
         this.addFolder = false
         this.addFolderName = ""
-        this.table.items = this.table.items.slice(1)
+        this.resData.items = this.resData.items.slice(1)
       }
     },
     handleUploadType(item){
@@ -320,7 +339,6 @@ export default {
         this.uploadDirectory = false
       }
       this.uploadFileOpen = true
-      //console.log(item,this.uploadDirectory);
       this.$nextTick(() =>{
         this.$refs.upload.$refs.uploadRef.$el.firstChild.click();
         this.uploadFileOpen = false
@@ -346,17 +364,16 @@ export default {
 
       // md5
       this.getFileMd5(file,(fileMd5) => {
-        this.showTransfer = true;
-        this.showTransferUploadList = true;
-        this.uploadList[fileMd5] = {
-          key:fileMd5,
-          filename:filename,
-          total:size,
-          upSize:0,
-          nicePass:false,
-        }
         const args = {path:path,filename:filename,md5:fileMd5,size:size,sliceTotal:total,sliceSize:sliceSize}
         uploadCheck(args).then(ret =>{
+          this.showTransfer = true;
+          this.showTransferUploadList = true;
+          this.uploadList[fileMd5] = {
+            key:fileMd5,
+            filename:filename,
+            total:size,
+            upSize:0
+          }
           //console.log(ret);
           // 开始上传
           if (ret.need) {
@@ -377,14 +394,14 @@ export default {
 
                 uploadFile(fd).then(() => {
                   // console.log(index,"ok");
-                  this.updateProgress(fileMd5, end-start,false)
+                  this.updateProgress(fileMd5, end-start)
                 })
               }else{
-                this.updateProgress(fileMd5,sliceSize,false)
+                this.updateProgress(fileMd5,sliceSize)
               }
             }
           }else{
-            this.updateProgress(fileMd5,size,true)
+            this.updateProgress(fileMd5,size)
           }
         })
 
@@ -403,10 +420,9 @@ export default {
       };
       
     },
-    updateProgress(key,value,nicePass){
+    updateProgress(key,value){
       const upInfo = this.uploadList[key]
       upInfo.upSize += value
-      upInfo.nicePass = nicePass
       if (upInfo && upInfo.upSize >= upInfo.total){
           //console.log(upInfo);
           this.getList(this.navs.join("/"))
@@ -563,7 +579,7 @@ export default {
   border:2px ;
   border-radius:4px;
   padding: 5px 16px;
-  width:600px;
+  width:580px;
   position: fixed;
   bottom: 0;
   right: 20px;

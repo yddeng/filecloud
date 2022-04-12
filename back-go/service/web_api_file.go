@@ -9,8 +9,12 @@ import (
 )
 
 type fileListData struct {
-	Total int     `json:"total"`
-	Items []*item `json:"items"`
+	DiskUsed     int64   `json:"diskUsed"`
+	DiskUsedStr  string  `json:"diskUsedStr"`
+	DiskTotal    int64   `json:"diskTotal"`
+	DiskTotalStr string  `json:"diskTotalStr"`
+	Total        int     `json:"total"`
+	Items        []*item `json:"items"`
 }
 
 type item struct {
@@ -54,8 +58,12 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 		}
 	}
 	wait.SetResult("", &fileListData{
-		Total: len(items),
-		Items: items,
+		DiskTotal:    fileDiskTotal,
+		DiskTotalStr: ConvertBytesString(uint64(fileDiskTotal)),
+		DiskUsed:     filePtr.UsedDisk,
+		DiskUsedStr:  ConvertBytesString(uint64(filePtr.UsedDisk)),
+		Total:        len(items),
+		Items:        items,
 	})
 }
 
@@ -83,6 +91,8 @@ func (*fileHandler) remove(wait *WaitConn, req struct {
 			return
 		}
 	}
+
+	calUsedDisk()
 }
 
 func (*fileHandler) rename(wait *WaitConn, req struct {
@@ -127,6 +137,7 @@ func (*fileHandler) rename(wait *WaitConn, req struct {
 	// 移除原文件
 	_ = remove(dirInfo, req.OldName)
 
+	calUsedDisk()
 }
 
 // 移动、复制 文件或文件夹
@@ -179,6 +190,8 @@ func (*fileHandler) mvcp(wait *WaitConn, req struct {
 			_ = remove(srcDir, srcName)
 		}
 	}
+
+	calUsedDisk()
 
 }
 

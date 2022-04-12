@@ -19,6 +19,11 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 		return
 	}
 
+	if filePtr.UsedDisk+int64(req.Size) > fileDiskTotal {
+		wait.SetResult("存储空间不足", nil)
+		return
+	}
+
 	dirInfo, err := filePtr.FileInfo.findDir(req.Path, true)
 	if err != nil {
 		wait.SetResult(err.Error(), nil)

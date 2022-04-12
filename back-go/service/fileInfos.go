@@ -12,12 +12,14 @@ import (
 
 var (
 	filePtr          *fileInfos
-	saveFileMultiple = true
+	saveFileMultiple       = true
+	fileDiskTotal    int64 = 50 * 1024 * 1024 // 默认50M
 )
 
 type fileInfos struct {
 	FileInfo *fileInfo           `json:"fileInfo"`
 	MD5Files map[string]*md5File `json:"md5Files"`
+	UsedDisk int64               `json:"_"`
 }
 
 type md5File struct {
@@ -138,6 +140,19 @@ func (this *fileInfo) mergeUpload() {
 	this.FileUpload = nil
 
 	addMD5File(this.FileMD5, this)
+
+	calUsedDisk()
+}
+
+func calUsedDisk() {
+	used := int64(0)
+	walk(filePtr.FileInfo, func(file *fileInfo) error {
+		if !file.IsDir && file.FileSize != 0 {
+			used += file.FileSize
+		}
+		return nil
+	})
+	filePtr.UsedDisk = used
 }
 
 func addMD5File(md5 string, info *fileInfo) {
@@ -327,7 +342,7 @@ func loadFilePath(filePath string) {
 			return err
 		}
 		relativePath := strings.TrimPrefix(absPath, dirPrefix)
-		fmt.Println(dirPrefix, relativePath, absPath, f.Name(), f.ModTime(), f.IsDir(), f.Size())
+		//fmt.Println(dirPrefix, relativePath, absPath, f.Name(), f.ModTime(), f.IsDir(), f.Size())
 		if !f.IsDir() {
 			// 是文件
 
@@ -360,5 +375,7 @@ func loadFilePath(filePath string) {
 
 		return nil
 	}))
+
+	calUsedDisk()
 
 }
