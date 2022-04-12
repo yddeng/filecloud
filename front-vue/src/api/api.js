@@ -67,3 +67,12 @@ export function uploadFile (parameter) {
     data: parameter
   })
 }
+
+export function downloadFile (parameter) {
+  return request({
+    url: "file/download",
+    method: 'post',
+    responseType:"blob",
+    data: parameter
+  })
+}

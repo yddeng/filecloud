@@ -1,9 +1,9 @@
 package service
 
 import (
-	"io"
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 )
@@ -201,28 +201,30 @@ func (*fileHandler) mvcp(wait *WaitConn, req struct {
 
 }
 
-func (*fileHandler) download(wait *WaitConn, req struct {
-	Path     string `json:"path"`
-	Filename string `json:"filename"`
-}) {
-	logger.Infof("%s %v", wait.GetRoute(), req)
-	defer func() { wait.Done() }()
+func (*fileHandler) download(ctx *gin.Context) {
+	type reqArg struct {
+		Path     string `json:"path"`
+		Filename string `json:"filename"`
+	}
 
-	w := wait.Context().Writer
+	var req *reqArg
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	logger.Infof("%s %v", getCurrentRoute(ctx), req)
 
 	info, err := filePtr.FileInfo.findDir(req.Path, false)
 	if err != nil {
-		logger.Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = io.WriteString(w, "Bad request")
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	file, ok := info.FileInfos[req.Filename]
-	if !ok {
-		logger.Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = io.WriteString(w, "Bad request")
+	if !ok || file.FileSize == 0 {
+		// 需要是一个存在的文件类型
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
@@ -231,33 +233,16 @@ func (*fileHandler) download(wait *WaitConn, req struct {
 		// 虚拟保存，修正到真实文件路径
 		md5File_, ok := filePtr.MD5Files[file.FileMD5]
 		if !ok {
-			logger.Error(err)
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = io.WriteString(w, "Bad request")
+			ctx.Status(http.StatusBadRequest)
 			return
 		}
 		absPath = md5File_.File
 	}
 
-	//打开文件
-	f, err := os.Open(absPath)
-	if err != nil {
-		logger.Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = io.WriteString(w, "Bad request")
-		return
-	}
-	//结束后关闭文件
-	defer f.Close()
-
 	//设置响应的header头
-	w.Header().Add("Content-type", "application/octet-stream")
-	w.Header().Add("content-disposition", "attachment; filename=\""+req.Filename+"\"")
-	//将文件写至responseBody
-	_, err = io.Copy(w, f)
-	if err != nil {
-		logger.Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = io.WriteString(w, "Bad request")
-	}
+	ctx.Writer.Header().Add("Content-type", "application/octet-stream")
+	ctx.Writer.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%s", req.Filename))
+	ctx.Writer.Header().Add("Access-Control-Expose-Headers", "Content-Disposition")
+	ctx.File(absPath)
+	ctx.Status(200)
 }

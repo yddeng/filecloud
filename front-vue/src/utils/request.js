@@ -12,6 +12,11 @@ const request = axios.create({
 
 // 异常拦截处理器
 const errorHandler = (error) => {
+  if (error.response){
+    //if (error.response.status === 400){
+      message.error(error.response.statusText);
+    //}
+  }
   return Promise.reject(error)
 }
 
@@ -22,12 +27,17 @@ request.interceptors.request.use(config => {
 
 // response interceptor
 request.interceptors.response.use((response) => {
-  if (!response.data.success) { // 成功
-    message.error(response.data.message);
-    return Promise.reject(response)
-  } else {
-    return response.data.data
+  if ('success' in response.data){
+    if (!response.data.success) { // 成功
+      message.error(response.data.message);
+      return Promise.reject(response)
+    } else {
+      return response.data.data
+    }
+  }else{
+    return response
   }
+  
 }, errorHandler)
 
 const installer = {

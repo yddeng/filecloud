@@ -26,13 +26,14 @@
           </a-upload>&nbsp;
           <a-button-group >
             <a-button icon="folder-add" @click="openAddFolder">新建文件夹</a-button>
-            <a-button icon="download" >离线下载</a-button>
+            <a-button icon="download" @click="()=>{$message.info('功能未实现')}">离线下载</a-button>
             <a-button icon="sync" @click="() => { this.goto(this.navs.length-1) }">刷新</a-button>
           </a-button-group>
         </template>
         <template v-else>
           <a-button-group >
-            <a-button icon="download" >下载</a-button>
+            <a-button icon="share-alt" @click="()=>{$message.info('功能未实现')}">分享</a-button>
+            <a-button icon="download" v-show="this.showDownload()" @click="handleDownload">下载</a-button>
             <a-button icon="delete" @click="openRemoveModal">删除</a-button>
             <a-button icon="form" v-show="this.selectedNames.length === 1" @click="openRename">重命名</a-button>
             <a-button icon="copy" @click="openMvcpModal(false)">复制</a-button>
@@ -139,6 +140,7 @@
   v-model="dirModalVisible" 
   :title="dirModalTitle" 
   width="700px"
+  centered
   :ok-text="dirModalOkText" 
   cancel-text="取消" 
   @ok="handleMvcp">
@@ -204,6 +206,7 @@ uploadCheck,
 uploadFile,
 fileRemove,
 rename,
+downloadFile,
 mvcp} from "@/api/api"
 import SparkMD5 from "spark-md5";
 
@@ -581,7 +584,33 @@ export default {
         this.dirModalVisible = false
       })
     },
-    
+    showDownload(){
+      if (this.selectedRowKeys.length === 1){
+        if (!this.resData.items[this.selectedRowKeys[0]].isDir){
+          return true
+        }
+      }
+      return false
+    },
+    handleDownload(){
+      if (this.showDownload()){
+      const filename = this.selectedNames[0]
+      const args = {path:this.navs.join("/"),filename:filename}
+      downloadFile(args).then(res =>{
+        //console.log(res);
+        const blob = new Blob([res.data]);
+
+        var downloadElement = document.createElement("a");
+        var href = window.URL.createObjectURL(blob);
+        downloadElement.href = href;
+        downloadElement.download = decodeURIComponent(filename);
+        document.body.appendChild(downloadElement);
+        downloadElement.click();
+        document.body.removeChild(downloadElement);
+        window.URL.revokeObjectURL(href); 
+      })
+      }
+    }
   },
 
 }
