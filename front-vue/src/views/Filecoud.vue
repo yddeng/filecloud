@@ -109,20 +109,20 @@
   <div 
   id="upload_div"
   v-show="showTransfer">
-    <div style="height: 48px;border-bottom: 2px solid #f6f6f6;">
+    <div style="height: 48px;border-bottom: 2px solid #f6f6f6">
       <a-row justify="space-between" type="flex" style="line-height:40px">
         <a-col style="font-size:16px">上传列表</a-col>
         <a-col style="margin-right:20px">
         <a-icon v-if="this.showTransferUploadList" type="down-circle" @click="()=>{ this.showTransferUploadList = false}"/>
-        <a-icon v-else type="up-circle" @click="()=>{ this.showTransferUploadList = true}"/>
+        <a-icon v-else type="up-circle"  @click="()=>{ this.showTransferUploadList = true}"/>
         </a-col>
       </a-row>
     </div>
     <div 
-    style="height:350px;overflow-y:auto"
+    style="height:350px;overflow-y:auto;margin-top:5px"
     v-show="showTransferUploadList">
       <template v-for="v of this.uploadList">
-        <a-row :key="v.key" style="height:40px;line-height:40px">
+        <a-row :key="v.key" class="upload_div_row">
           <a-col :span="6" style="text-overflow:ellipsis;overflow:hidden;white-space:nowrap">{{ v.filename }}</a-col>
           <a-col :span="17">
             <a-progress v-if="v.upSize < v.total" 
@@ -576,7 +576,7 @@ export default {
 
 #upload_div{
   box-shadow: 0 1px 20px rgba(0,0,0,.2);
-  border:2px ;
+  border:2px;
   border-radius:4px;
   padding: 5px 16px;
   width:580px;
@@ -585,6 +585,15 @@ export default {
   right: 20px;
   z-index: 1000;
   background: white;
+}
+
+.upload_div_row{
+  height:40px;
+  line-height:40px;
+  background:#F0F0F0;
+  padding:0 5px;
+  margin-bottom:5px;
+  border-radius:5px;
 }
 
 /* 滚动条宽度 */

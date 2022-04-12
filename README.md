@@ -2,16 +2,26 @@
 
 仿百度网盘，实现个人文件存储云盘。
 
+## 功能支持
+
+- 文件上传。 支持单文件、多文件、文件夹上传
+- 文件、文件夹拷贝、移动
+- 文件下载
+- 在线预览 todo
+- 分享链接 todo
+
 
 ## 页面展示
 
-![文件上传](assets/file_upload.jpg)
+![文件上传](assets/upload.png)
+
+![文件移动](assets/move.png)
 
 ## 分片上传、断点续传
 
 文件过大时，上传文件需要很长时间，且中途退出将导致文件重传。
 
-分片上传: 上传文件时，在本地将文件按照 2M 的大小将文件进行分片。在服务器端将文件组合。
+分片上传: 上传文件时，在本地将文件按照 4M 的大小将文件进行分片。在服务器端将文件组合。
 
 断点续传: 如果文件没有上传完，关闭客户端。再一次上传文件时，对比服务器已经上传的分片，只需要上传没有的分片。
 
@@ -43,42 +53,41 @@ SaveFileMultiple 文件是否保存为多份。
 
 故重启目录结构显示是真实的目录结构。上传的文件分片会在重启加载时删除。
 
-## 接口
-
-```
-hServer.HandleFuncUrlParam("/file/list", fileList) // 当前路径列表
-hServer.HandleFuncUrlParam("/file/delete", fileDelete) // 删除文件、文件夹
-hServer.HandleFuncUrlParam("/file/mkdir", fileMkdir) // 创建目录
-hServer.HandleFuncJson("/file/check", &fileCheckReq{}, fileCheck) // 文件上传时调用，检查文件是否已经存在
-hServer.HandleFunc("/file/upload", fileUpload) // 文件上传，分片上传。
-hServer.HandleFuncUrlParam("/file/download", fileDownload) // 文件下载，暂时只支持文件
-hServer.HandleFuncUrlParam("/file/action", fileAction) // 文件移动、拷贝到指定目录
-```
-
-## todo
-
-文件移动、拷贝。
-
-## 欢迎PR,ISSUES
-
-个人能力有限，前端的东西不太会。很多都是边查资料边做的，希望有这方面的大佬把前端的代码改改。
 
 ## 启动
 
-`go get github.com/yddeng/filecloud`
+前端： vue4.5.15 + antd1.7.8
 
-1. config.toml
+后端： go1.17.7 + gin 
 
+### 前端项目
+
+切换到 `front-vue` 目录
+
+安装依赖 `yarn install `
+
+更改 `src/config/config.js` 第1行 `const target = 'http://127.0.0.1:9987'` 地址
+
+运行 `yarn run serve `
+
+打包 `yarn build` , 运行后会在`front-vue`目录生成 `dist` 文件夹，里面就是构建打包好的文件
+
+### 后端项目
+
+切换到 `back-go/cmd` 目录
+
+配置 `config.toml`
 ```
-WebAddr  = "127.0.0.1:9987"      # web 地址
-WebIndex = "./app"               # web html目录
-FilePath = "cloud"               # 文件存放目录
-SliceSize = 2                    # 上传分片大小，单位MB
-SaveFileMultiple = false         # 文件是否保存为多份。
+  WebAddr   = "127.0.0.1:9987"            # web 地址
+  WebIndex  = "../../front-vue/dist"      # web html目录
+  FilePath  = "cloud"                     # 文件存放目录
+  SaveFileMultiple = true                 # 文件是否保存为多份
+  FileDiskTotal    = 50                   # 配置的网盘容量，单位 M
 ```
 
-2. `go run server/main/filecloud.go config.toml` 
+启动 `go run filecloud.go` 或者 `go build filecloud.go`+`./filecloud`
 
-3. 浏览器访问 webAddr。用 `http` 方式访问。
+
+3. 浏览器访问 `127.0.0.1:9987` 。用 `http` 方式访问。
 
 
