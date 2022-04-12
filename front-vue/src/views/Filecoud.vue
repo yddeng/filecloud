@@ -33,7 +33,7 @@
         <template v-else>
           <a-button-group >
             <a-button icon="download" >下载</a-button>
-            <a-button icon="delete" @click="handleRemove">删除</a-button>
+            <a-button icon="delete" @click="openRemoveModal">删除</a-button>
             <a-button icon="form" v-show="this.selectedNames.length === 1" @click="openRename">重命名</a-button>
             <a-button icon="copy" @click="openMvcpModal(false)">复制</a-button>
             <a-button icon="drag" @click="openMvcpModal(true)">移动</a-button>
@@ -105,7 +105,7 @@
     </template>
   </a-table>
 
-  
+  <!-- 上传列表 -->
   <div 
   id="upload_div"
   v-show="showTransfer">
@@ -134,7 +134,7 @@
     </div>
   </div>
   
-
+  <!-- 移动对话框 -->
   <a-modal 
   v-model="dirModalVisible" 
   :title="dirModalTitle" 
@@ -178,6 +178,22 @@
       </a-table>
     </div>
   </a-modal>
+
+  <!-- 删除对话框 -->
+  <a-modal 
+  v-model="removeModalVisible" 
+  title="确认删除" 
+  width="450px"
+  centered
+  footer=""
+  >
+    <p style="text-align: center"><a-icon type="exclamation-circle" theme="twoTone" style="font-size:46px"/></p>
+    <p style="text-align: center">确定删除所选文件吗？</p>
+    <p style="text-align: center">
+    <a-button shape="round" @click="()=>{this.removeModalVisible = false}">取消</a-button>&nbsp;
+    <a-button type="primary" shape="round" @click="handleRemove">删除</a-button>
+    </p>
+  </a-modal>
  </div>
 </template>
 <script>
@@ -206,6 +222,9 @@ export default {
       root:"cloud",
       navs :[],
       resData:{},
+
+      // 删除
+      removeModalVisible: false,
 
       // 新建目录
       addFolder: false,
@@ -264,7 +283,7 @@ export default {
           if ( !a.isDir && b.isDir){
             return 1
           }else if (a.isDir == b.isDir){
-            return a.filename - b.filename
+            return a.filename > b.filename ? 1 : -1
           }
           return -1
         })
@@ -446,10 +465,16 @@ export default {
         this.$message.error(`${info.file.name} file upload failed.`);
       }
     },
+    openRemoveModal(){
+      this.removeModalVisible = true
+    },
     handleRemove(){
       let path = this.navs.join("/")
       fileRemove({path:path,filename:this.selectedNames}).then(()=>{
         this.getList(path)
+      })
+      .finally(()=>{
+        this.removeModalVisible = false
       })
     },
     openRename(){
