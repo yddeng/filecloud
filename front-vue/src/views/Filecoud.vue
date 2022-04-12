@@ -585,30 +585,35 @@ export default {
       })
     },
     showDownload(){
-      if (this.selectedRowKeys.length === 1){
-        if (!this.resData.items[this.selectedRowKeys[0]].isDir){
-          return true
+      if (this.selectedRowKeys.length > 0){
+        for (var idx of this.selectedRowKeys){
+          if (this.resData.items[idx].isDir){
+            return false
+          }
         }
+        return true
       }
       return false
     },
     handleDownload(){
       if (this.showDownload()){
-      const filename = this.selectedNames[0]
-      const args = {path:this.navs.join("/"),filename:filename}
-      downloadFile(args).then(res =>{
-        //console.log(res);
-        const blob = new Blob([res.data]);
+        for (var idx in this.selectedNames){
+          const filename = this.selectedNames[idx]
+          const args = {path:this.navs.join("/"),filename:filename}
+          downloadFile(args).then(res =>{
+            //console.log(res);
+            const blob = new Blob([res.data]);
 
-        var downloadElement = document.createElement("a");
-        var href = window.URL.createObjectURL(blob);
-        downloadElement.href = href;
-        downloadElement.download = decodeURIComponent(filename);
-        document.body.appendChild(downloadElement);
-        downloadElement.click();
-        document.body.removeChild(downloadElement);
-        window.URL.revokeObjectURL(href); 
-      })
+            var downloadElement = document.createElement("a");
+            var href = window.URL.createObjectURL(blob);
+            downloadElement.href = href;
+            downloadElement.download = decodeURIComponent(filename);
+            document.body.appendChild(downloadElement);
+            downloadElement.click();
+            document.body.removeChild(downloadElement);
+            window.URL.revokeObjectURL(href); 
+          })
+        }
       }
     }
   },
