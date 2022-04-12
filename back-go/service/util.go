@@ -1,12 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"os"
 	"time"
 )
@@ -15,6 +17,16 @@ const timeFormat = "2006-01-02 15:04:05"
 
 func nowFormat() string {
 	return time.Now().Format(timeFormat)
+}
+
+func GenToken(l int) string {
+	s := "0123456789qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPLKJHGFDSAZXCVBNM"
+	tkn := bytes.Buffer{}
+	for i := 0; i < l; i++ {
+		idx := rand.Int() % len(s)
+		tkn.WriteByte(s[idx])
+	}
+	return tkn.String()
 }
 
 func makeFilePart(name, part string) string {
@@ -114,4 +126,8 @@ func ConvertBytes(b uint64) (float64, string) {
 func ConvertBytesString(b uint64) string {
 	cf, s := ConvertBytes(b)
 	return fmt.Sprintf("%.1f%s", cf, s)
+}
+
+func init() {
+	rand.Seed(time.Now().Unix())
 }

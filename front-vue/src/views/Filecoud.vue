@@ -112,10 +112,11 @@
   v-show="showTransfer">
     <div style="height: 48px;border-bottom: 2px solid #f6f6f6">
       <a-row justify="space-between" type="flex" style="line-height:40px">
-        <a-col style="font-size:16px">上传列表</a-col>
-        <a-col style="margin-right:20px">
-        <a-icon v-if="this.showTransferUploadList" type="down-circle" @click="()=>{ this.showTransferUploadList = false}"/>
-        <a-icon v-else type="up-circle" @click="()=>{ this.showTransferUploadList = true}"/>
+        <a-col style="font-size:16px">上传列表 ( {{ this.uploadFinallyCount()}} / {{ Object.keys(this.uploadList).length }} )</a-col>
+        <a-col style="margin-right:16px">
+        <a-icon v-if="this.showTransferUploadList" type="minus" @click="()=>{ this.showTransferUploadList = false}"/>
+        <a-icon v-else type="border" @click="()=>{ this.showTransferUploadList = true}"/>
+        &nbsp;&nbsp;<a-icon type="close" @click="()=>{ this.showTransfer = false}"/>
         </a-col>
       </a-row>
     </div>
@@ -453,8 +454,14 @@ export default {
       // 页面数据强制刷新
       this.$forceUpdate();
     },
-    openTransfer(){
-      this.showTransfer = !this.showTransfer;
+    uploadFinallyCount(){
+      let cnt = 0
+      for (let k in this.uploadList){
+        if (this.uploadList[k].upSize >= this.uploadList[k].total){
+          cnt++
+        }
+      }
+      return cnt
     },
     handleChange(info) {
       console.log(info);

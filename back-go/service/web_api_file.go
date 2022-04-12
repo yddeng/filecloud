@@ -27,6 +27,26 @@ type item struct {
 type fileHandler struct {
 }
 
+func (*fileHandler) mkdir(wait *WaitConn, req struct {
+	Path string `json:"path"`
+}) {
+	logger.Infof("%s %v", wait.GetRoute(), req)
+
+	defer func() { wait.Done() }()
+
+	if req.Path == "" {
+		wait.SetResult("创建路径错误", nil)
+		return
+	}
+
+	_, err := filePtr.FileInfo.findDir(req.Path, true)
+	if err != nil {
+		wait.SetResult(err.Error(), nil)
+		return
+	}
+
+}
+
 func (*fileHandler) list(wait *WaitConn, req struct {
 	Path string `json:"path"`
 }) {
@@ -41,8 +61,7 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 
 	items := make([]*item, 0, len(info.FileInfos))
 	for _, info := range info.FileInfos {
-		// 正在上传中的文件不同步
-		if info.IsDir || info.FileUpload == nil {
+		if info.IsDir || info.FileSize != 0 {
 			_item := &item{
 				Filename: info.Name,
 				IsDir:    info.IsDir,
@@ -201,18 +220,12 @@ func (*fileHandler) mvcp(wait *WaitConn, req struct {
 
 }
 
-func (*fileHandler) download(ctx *gin.Context) {
-	type reqArg struct {
-		Path     string `json:"path"`
-		Filename string `json:"filename"`
-	}
+type downloadArg struct {
+	Path     string `json:"path"`
+	Filename string `json:"filename"`
+}
 
-	var req *reqArg
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
-
+func download(ctx *gin.Context, req *downloadArg) {
 	logger.Infof("%s %v", getCurrentRoute(ctx), req)
 
 	info, err := filePtr.FileInfo.findDir(req.Path, false)

@@ -14,7 +14,7 @@ import request from '@/utils/request'
  */
 export function mkdir (parameter) {
   return request({
-    url: "path/mkdir",
+    url: "file/mkdir",
     method: 'post',
     data: parameter
   })

@@ -200,20 +200,60 @@ func WarpHandle(fn interface{}) gin.HandlerFunc {
 }
 
 func initHandler(app *gin.Engine) {
-	pathHandle := new(pathHandler)
-	pathGroup := app.Group("/path")
-	pathGroup.POST("/mkdir", WarpHandle(pathHandle.mkdir))
-
 	fileHandle := new(fileHandler)
 	fileGroup := app.Group("/file")
+	fileGroup.POST("/mkdir", WarpHandle(fileHandle.mkdir))
 	fileGroup.POST("/list", WarpHandle(fileHandle.list))
 	fileGroup.POST("/remove", WarpHandle(fileHandle.remove))
 	fileGroup.POST("/rename", WarpHandle(fileHandle.rename))
 	fileGroup.POST("/mvcp", WarpHandle(fileHandle.mvcp))
-	fileGroup.POST("/download", fileHandle.download)
+	fileGroup.POST("/download", func(ctx *gin.Context) {
+		var req *downloadArg
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Json unmarshal failed!",
+				"error":   err.Error(),
+			})
+			return
+		}
+		download(ctx, req)
+	})
 
 	uploadHandle := new(uploadHandler)
 	uploadGroup := app.Group("/upload")
 	uploadGroup.POST("/check", WarpHandle(uploadHandle.check))
 	uploadGroup.POST("/upload", WarpHandle(uploadHandle.upload))
+
+	shareHandle := new(shareHandler)
+	shareGroup := app.Group("/shared")
+	shareGroup.POST("/create", WarpHandle(shareHandle.create))
+	shareGroup.POST("/s/:key", func(ctx *gin.Context) {
+		// 动态路由
+		var req *sharedArg
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Json unmarshal failed!",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		req.Key = ctx.Param("key")
+
+		transBegin(ctx, shareHandle.list, reflect.ValueOf(req))
+	})
+	/*
+		fileGroup.POST("/s/:key/download", func(ctx *gin.Context) {
+			var req *downloadArg
+			if err := ctx.ShouldBindJSON(&req); err != nil {
+				ctx.JSON(http.StatusBadRequest, gin.H{
+					"message": "Json unmarshal failed!",
+					"error":   err.Error(),
+				})
+				return
+			}
+			download(ctx, req)
+		})
+
+	*/
 }
