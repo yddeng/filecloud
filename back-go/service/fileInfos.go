@@ -12,19 +12,19 @@ import (
 
 var (
 	filePtr          *fileInfos
-	saveFileMultiple       = true
-	fileDiskTotal    int64 = 50 * 1024 * 1024 // 默认50M
+	saveFileMultiple = true
+	fileDiskTotal    = 50 * MB // 默认50M
 )
 
 type fileInfos struct {
 	FileInfo *fileInfo           `json:"fileInfo"`
 	MD5Files map[string]*md5File `json:"md5Files"`
-	UsedDisk int64               `json:"_"`
+	UsedDisk uint64              `json:"_"`
 }
 
 type md5File struct {
 	File string   `json:"file"` // 原始文件
-	Size int64    `json:"size"`
+	Size uint64   `json:"size"`
 	MD5  string   `json:"md5"`
 	Ptr  []string `json:"ptr"` // 文件引用
 }
@@ -35,7 +35,7 @@ type fileInfo struct {
 	AbsPath    string               `json:"absPath"`        // 绝对路径
 	IsDir      bool                 `json:"isDir,omitempty"`
 	ModeTime   string               `json:"modeTime"`
-	FileSize   int64                `json:"fileSize"`  // 文件有值。有值表示存在文件，无值说明正在上传
+	FileSize   uint64               `json:"fileSize"`  // 文件有值。有值表示存在文件，无值说明正在上传
 	FileMD5    string               `json:"fileMd5"`   // 文件有值。有值表示存在文件，无值说明正在上传
 	FileInfos  map[string]*fileInfo `json:"fileInfos"` // 文件夹有值
 	FileUpload *upload              `json:"_"`         // 文件上传零时数据
@@ -43,8 +43,8 @@ type fileInfo struct {
 
 type upload struct {
 	Md5        string           `json:"md5"`        // 文件上传时的md5值
-	Size       int              `json:"size"`       // 文件总大小
-	SliceSize  int              `json:"sliceSize"`  // 上传的分片大小
+	Size       uint64           `json:"size"`       // 文件总大小
+	SliceSize  uint64           `json:"sliceSize"`  // 上传的分片大小
 	Total      int              `json:"total"`      // 文件上传时分片总数
 	ExistSlice map[string]int64 `json:"existSlice"` // 文件上传时，已经上传的分片
 	Token      string           `json:"token"`      // 上传时需要验证token
@@ -135,7 +135,7 @@ func (this *fileInfo) mergeUpload() {
 	}
 
 	this.FileMD5 = this.FileUpload.Md5
-	this.FileSize = int64(this.FileUpload.Size)
+	this.FileSize = this.FileUpload.Size
 	this.ModeTime = nowFormat()
 	this.FileUpload = nil
 
@@ -145,10 +145,10 @@ func (this *fileInfo) mergeUpload() {
 }
 
 func calUsedDisk() {
-	used := int64(0)
+	used := uint64(0)
 	walk(filePtr.FileInfo, func(file *fileInfo) error {
 		if !file.IsDir && file.FileSize != 0 {
-			used += file.FileSize
+			used += uint64(file.FileSize)
 		}
 		return nil
 	})
@@ -361,7 +361,7 @@ func loadFilePath(filePath string) {
 				if fileInfo, err := dirInfo.makeChild(file, false); err != nil {
 					return err
 				} else {
-					fileInfo.FileSize = f.Size()
+					fileInfo.FileSize = uint64(f.Size())
 					fileInfo.FileMD5 = md5
 					fileInfo.ModeTime = f.ModTime().Format(timeFormat)
 					dirInfo.FileInfos[file] = fileInfo

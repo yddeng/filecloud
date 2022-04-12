@@ -20,7 +20,7 @@ var (
 func Launch() {
 	taskQueue = task.NewTaskPool(1, 1024)
 	saveFileMultiple = config.SaveFileMultiple
-	fileDiskTotal = config.FileDiskTotal * 1024 * 1024
+	fileDiskTotal = config.FileDiskTotal * MB
 
 	loadFilePath(config.FilePath)
 

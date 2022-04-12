@@ -8,7 +8,7 @@ type Config struct {
 	WebAddr          string `toml:"WebAddr"`
 	WebIndex         string `toml:"WebIndex"`
 	FilePath         string `toml:"FilePath"`
-	FileDiskTotal    int64  `toml:"FileDiskTotal"`
+	FileDiskTotal    uint64 `toml:"FileDiskTotal"`
 	SaveFileMultiple bool   `toml:"SaveFileMultiple"`
 }
 

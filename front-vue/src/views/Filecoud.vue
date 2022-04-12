@@ -114,12 +114,12 @@
         <a-col style="font-size:16px">上传列表</a-col>
         <a-col style="margin-right:20px">
         <a-icon v-if="this.showTransferUploadList" type="down-circle" @click="()=>{ this.showTransferUploadList = false}"/>
-        <a-icon v-else type="up-circle"  @click="()=>{ this.showTransferUploadList = true}"/>
+        <a-icon v-else type="up-circle" @click="()=>{ this.showTransferUploadList = true}"/>
         </a-col>
       </a-row>
     </div>
     <div 
-    style="height:350px;overflow-y:auto;margin-top:5px"
+    style="height:300px;overflow-y:auto;margin-top:5px"
     v-show="showTransferUploadList">
       <template v-for="v of this.uploadList">
         <a-row :key="v.key" class="upload_div_row">

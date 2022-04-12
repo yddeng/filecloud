@@ -7,9 +7,9 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 	Path       string `json:"path"`
 	Filename   string `json:"filename"`
 	MD5        string `json:"md5"`
-	Size       int    `json:"size"`
+	Size       uint64 `json:"size"`
 	SliceTotal int    `json:"sliceTotal"`
-	SliceSize  int    `json:"sliceSize"`
+	SliceSize  uint64 `json:"sliceSize"`
 }) {
 	logger.Infof("%s %v", wait.GetRoute(), req)
 	defer func() { wait.Done() }()
@@ -19,7 +19,7 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 		return
 	}
 
-	if filePtr.UsedDisk+int64(req.Size) > fileDiskTotal {
+	if filePtr.UsedDisk+req.Size > fileDiskTotal {
 		wait.SetResult("存储空间不足", nil)
 		return
 	}
@@ -65,7 +65,7 @@ func (*uploadHandler) check(wait *WaitConn, req struct {
 					return
 				}
 			}
-			newInfo.FileSize = int64(req.Size)
+			newInfo.FileSize = req.Size
 			newInfo.FileMD5 = req.MD5
 
 			addMD5File(newInfo.FileMD5, newInfo)

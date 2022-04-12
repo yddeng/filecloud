@@ -9,9 +9,9 @@ import (
 )
 
 type fileListData struct {
-	DiskUsed     int64   `json:"diskUsed"`
+	DiskUsed     uint64  `json:"diskUsed"`
 	DiskUsedStr  string  `json:"diskUsedStr"`
-	DiskTotal    int64   `json:"diskTotal"`
+	DiskTotal    uint64  `json:"diskTotal"`
 	DiskTotalStr string  `json:"diskTotalStr"`
 	Total        int     `json:"total"`
 	Items        []*item `json:"items"`
@@ -59,9 +59,9 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 	}
 	wait.SetResult("", &fileListData{
 		DiskTotal:    fileDiskTotal,
-		DiskTotalStr: ConvertBytesString(uint64(fileDiskTotal)),
+		DiskTotalStr: ConvertBytesString(fileDiskTotal),
 		DiskUsed:     filePtr.UsedDisk,
-		DiskUsedStr:  ConvertBytesString(uint64(filePtr.UsedDisk)),
+		DiskUsedStr:  ConvertBytesString(filePtr.UsedDisk),
 		Total:        len(items),
 		Items:        items,
 	})
@@ -168,15 +168,21 @@ func (*fileHandler) mvcp(wait *WaitConn, req struct {
 			return
 		}
 
-		// 不能移动到自身或子目录下
-		if strings.Contains(tarDir.AbsPath, srcDir.AbsPath) {
-			wait.SetResult("不能移动文件夹到自身目录或子目录", nil)
-			return
-		}
-
 		srcInfo, ok := srcDir.FileInfos[srcName]
 		if !ok {
 			wait.SetResult("文件不存在", nil)
+			return
+		}
+
+		// 不能移动到自身或子目录下
+		if tarDir.AbsPath == srcDir.AbsPath ||
+			strings.Contains(tarDir.AbsPath, srcInfo.AbsPath) {
+			wait.SetResult("不能拷贝、移动文件夹到自身目录或子目录", nil)
+			return
+		}
+
+		if _, ok = tarDir.FileInfos[srcName]; ok {
+			wait.SetResult("目标目录下已存在同名文件", nil)
 			return
 		}
 
