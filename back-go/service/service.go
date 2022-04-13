@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yddeng/utils/task"
 	"net/http"
+	"path"
 	"reflect"
 	"strings"
 	"sync"
@@ -242,19 +243,43 @@ func initHandler(app *gin.Engine) {
 	//
 	//	transBegin(ctx, shareHandle.list, reflect.ValueOf(req))
 	//})
+	shareGroup.POST("/info", WarpHandle(shareHandle.info))
 	shareGroup.POST("/list", WarpHandle(shareHandle.list))
-	/*
-		fileGroup.POST("/s/:key/download", func(ctx *gin.Context) {
-			var req *downloadArg
-			if err := ctx.ShouldBindJSON(&req); err != nil {
-				ctx.JSON(http.StatusBadRequest, gin.H{
-					"message": "Json unmarshal failed!",
-					"error":   err.Error(),
-				})
+	shareGroup.POST("/download", func(ctx *gin.Context) {
+		var req *shareDownloadArg
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Json unmarshal failed!",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		shared, err := shareHandle.checkShared(req.Key, req.SharedToken)
+		if err != nil {
+			ctx.Status(http.StatusBadRequest)
+			return
+		}
+
+		if req.Path != shared.Path {
+			children := false
+			for _, name := range shared.Filename {
+				if strings.Contains(req.Path, path.Join(shared.Path, name)) {
+					children = true
+					break
+				}
+			}
+
+			if !children {
+				ctx.Status(http.StatusBadRequest)
 				return
 			}
-			download(ctx, req)
-		})
+		}
 
-	*/
+		download(ctx, &downloadArg{
+			Path:     req.Path,
+			Filename: req.Filename,
+		})
+	})
+
 }

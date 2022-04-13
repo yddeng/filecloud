@@ -1,6 +1,21 @@
 <template>
   <div class="body">
+  
     <div id="header">
+      <div id="header-title">
+        <a-row justify="space-between" type="flex">
+          <a-col style="font-size:20px;">
+            <a-icon type="appstore" theme="twoTone" /> &nbsp; <span>{{this.sharedInfo.name}}</span>
+          </a-col>
+          <a-col  style="margin-right:40px">
+            <a-button icon="download" :disabled="!showDownload()" @click="handleDownload">下载</a-button>
+          </a-col>
+        </a-row>
+        
+      </div>
+      <div id="header-time">
+        <a-icon type="clock-circle" /> <span>{{showCreateTime()}}</span> &nbsp;&nbsp; <span>过期时间：{{showDeadline()}}后</span> 
+      </div>
     </div>
 
     <div class="path">
@@ -26,38 +41,52 @@
 
     <a-table 
     :columns="columns" 
-    :data-source="resData.items"
+    :data-source="tableData"
     :pagination="false"
     :rowKey="(record,index) => index"
     :row-selection="{selectedRowKeys:selectedRowKeys,onChange:onSelectChange}"
     >
-      <template slot="name" slot-scope="text, record,index">
+      <template slot="name" slot-scope="text, record">
         <a-icon type="folder" v-if="record.isDir"/>
         <a-icon type="file" v-else/>
         &nbsp;&nbsp;
-        <template v-if="addFolder && index === 0">
-            <a-input v-model="addFolderName" ref="addFolderInputRef" style="width:50%" @keyup.enter="handleAddFolderOK"/>&nbsp;
-            <a-button icon="check" type="primary" size="small" @click="handleAddFolderOK"/>&nbsp;
-            <a-button icon="close" type="primary" size="small" @click="handleAddFolderCancle"/>
-        </template>
-        <template v-else-if="renameIndex === index">
-            <a-input v-model="renameValue" ref="renameInputRef" style="width:50%" @keyup.enter="handleRenameOK"/>&nbsp;
-            <a-button icon="check" type="primary" size="small" @click="handleRenameOK"/>&nbsp;
-            <a-button icon="close" type="primary" size="small" @click="handleRenameCancle"/>
-        </template>
-        <template v-else>
           <a v-if="record.isDir" href="javascript:;" @click="gonext(text)">{{text}}</a>
           <span v-else>{{text}}</span>
-         </template>
       </template>
     </a-table>
+  
+
+    <!-- token -->
+    <a-modal 
+    v-model="sharedModalToken" 
+    title="提取分享链接" 
+    width="500px"
+    centered
+    :maskStyle="{opacity:1,background:'#F0F0F0'}"
+    :maskClosable="false"
+    :closable="false"
+    footer=""
+    >
+      <div style="height:180px">
+        <br/>
+        <p>请输入提取码：</p>
+        <a-input v-model="sharedModalValue" style="width:300px" @keyup.enter="handleSharedInfo"></a-input>&nbsp;
+        <a-button type="primary" @click="handleSharedInfo">提取文件</a-button>
+        <p v-show="this.sharedTokenCheckFailed" style="color:	#FF5151;font-size:12px">提取码错误</p>
+
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script>
 import {
-list,
+sharedInfo,
+sharedList,
+sharedDownload,
 } from "@/api/api"
+import moment from 'moment'
+
 export default {
   name: 'fileshared',
   data () {
@@ -70,47 +99,24 @@ export default {
       selectedRowKeys:[],
       selectedNames:[],
 
-      root:"cloud",
+      sharedToken:"",
+      sharedKey:"",
+      sharedInfo:{},
+
       navs :[],
-      resData:{},
+      tableData:[],
 
-      // 删除
-      removeModalVisible: false,
-
-      // 新建目录
-      addFolder: false,
-      addFolderName:"",
-
-      // 上传文件
-      uploadDirectory:false,
-      uploadFileOpen:false,
-
-      // 重命名
-      renameIndex:-1,
-      renameValue:"",
-
-      // 移动、拷贝
-      dirModalVisible:false,
-      dirModalTitle:"",
-      dirModalOkText:"",
-      dirModalNavs:[],
-      dirModalColumns:[
-        {title:'文件名',dataIndex: 'filename',scopedSlots: { customRender: 'name' }},
-      ],
-      dirModalData:[],
-      mvcpMove:false,
-      mvcpSource:[],
-      mvcpTarget:"",
-      
-      // 传输列表
-      showTransfer:false,
-      showTransferUploadList:true,
-      uploadList:{},
+      sharedModalToken:false,
+      sharedModalValue:"",
+      sharedTokenCheckFailed:false,
     }
   },
   mounted () {
-    this.navs.push(this.root);
-    this.goto(0);
+    console.log(this.$route);
+    this.sharedKey = "5Pa2WpBcXeYqz3lf"
+    if (this.sharedToken === ""){
+      this.sharedModalToken = true
+    }
   },
   methods:{
     onSelectChange (selectedRowKeys, selectedRows)  {
@@ -123,14 +129,12 @@ export default {
       this.selectedNames = names;
     },
     getList(path){
-      list({path:path}).then(res => {
-        this.addFolder = false;
-        this.addFolderName = "";
+      sharedList({path:path,key:this.sharedKey,sharedToken:this.sharedToken}).then(res => {
         this.selectedRowKeys = []
         this.selectedNames = []
-        this.resData = res;
+        this.tableData = res.items;
         // 排序 目录 > 名字
-        this.resData.items.sort((a,b) =>{
+        this.tableData.sort((a,b) =>{
           if ( !a.isDir && b.isDir){
             return 1
           }else if (a.isDir == b.isDir){
@@ -162,18 +166,79 @@ export default {
         this.getList(path)
       }
     },
+    showDeadline(){
+      let start = moment.unix(this.sharedInfo.createTime)
+      let end = moment.unix(this.sharedInfo.deadline)
+      return end.to(start,true)
+    },
+    showCreateTime(){
+      return moment.unix(this.sharedInfo.createTime).format('YYYY-MM-DD HH:mm:ss')
+    },
+    handleSharedInfo(){
+      const args = {key:this.sharedKey,sharedToken:this.sharedModalValue}
+      sharedInfo(args)
+      .then((ret) => {
+        //console.log(ret);
+        this.sharedModalToken = false
+        this.sharedToken = args.sharedToken
+        this.sharedInfo = ret
+        this.tableData = ret.items
+        this.navs.push(ret.root)
+      })
+      .catch(()=>{
+        this.sharedTokenCheckFailed = true
+      })
+    },
+    showDownload(){
+      if (this.selectedRowKeys.length > 0){
+        for (var idx of this.selectedRowKeys){
+          if (this.tableData[idx].isDir){
+            return false
+          }
+        }
+        return true
+      }
+      return false
+    },
+    handleDownload(){
+      if (this.showDownload()){
+        for (var idx in this.selectedNames){
+          const filename = this.selectedNames[idx]
+          const args = {key:this.sharedKey,sharedToken:this.sharedToken,path:this.navs.join("/"),filename:filename}
+          sharedDownload(args).then(res =>{
+            //console.log(res);
+            const blob = new Blob([res.data]);
+
+            var downloadElement = document.createElement("a");
+            var href = window.URL.createObjectURL(blob);
+            downloadElement.href = href;
+            downloadElement.download = decodeURIComponent(filename);
+            document.body.appendChild(downloadElement);
+            downloadElement.click();
+            document.body.removeChild(downloadElement);
+            window.URL.revokeObjectURL(href); 
+          })
+        }
+      }
+    },
   },
 }
 </script>
 <style>
 .body{
-  padding:0 20px;
+  padding:10px 30px;
 }
 #header{
+  height:86px;
+  margin-bottom:10px;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+#header-title{
   height:60px;
   line-height:60px;
-  margin-bottom:10px;
 }
+
 .path{
   margin-bottom:10px;
 }

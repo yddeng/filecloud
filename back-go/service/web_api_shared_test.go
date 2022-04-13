@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-func TestShare(t *testing.T) {
+func TestShareInfo(t *testing.T) {
 	elem := map[string]interface{}{
-		"path":     "cloud/111",
-		"filename": []string{"222", "babel.config.js"},
-		"deadline": 0,
+		"path":     "cloud",
+		"filename": []string{"111", "babel.config.js"},
+		"deadline": 7,
 	}
 
 	req, _ := dhttp.PostJson("http://127.0.0.1:9987/shared/create", elem)
@@ -21,11 +21,10 @@ func TestShare(t *testing.T) {
 
 	elem = map[string]interface{}{
 		"key":         strings.TrimPrefix(gjson.Get(ret, "data.route").String(), "http://127.0.0.1:9987/shared/s/"),
-		"path":        "cloud/111",
 		"sharedToken": gjson.Get(ret, "data.sharedToken").String(),
 	}
 
-	req, _ = dhttp.PostJson("http://127.0.0.1:9987/shared/list", elem)
+	req, _ = dhttp.PostJson("http://127.0.0.1:9987/shared/info", elem)
 	ret, err = req.ToString()
 	fmt.Println(ret, err)
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/pkg/errors"
 	"path"
 	"strings"
 	"time"
@@ -90,8 +91,84 @@ func (this *shareHandler) create(wait *WaitConn, req struct {
 
 }
 
-// 动态路由
-func (*shareHandler) list(wait *WaitConn, req struct {
+func (*shareHandler) checkShared(key, token string) (*fileShare, error) {
+	shared, ok := fileShared[key]
+	if !ok || (shared.Deadline != 0 && time.Now().Unix() > shared.Deadline) {
+		delete(fileShared, key)
+		return nil, errors.New("分享链接已过期")
+	}
+
+	if shared.SharedToken != token {
+		return nil, errors.New("提取码错误")
+	}
+
+	return shared, nil
+}
+
+func (this *shareHandler) info(wait *WaitConn, req struct {
+	Key         string `json:"key"`
+	SharedToken string `json:"sharedToken"`
+}) {
+	logger.Infof("%s %v", wait.GetRoute(), req)
+	defer func() { wait.Done() }()
+
+	shared, err := this.checkShared(req.Key, req.SharedToken)
+	if err != nil {
+		wait.SetResult(err.Error(), nil)
+		return
+	}
+
+	shared.Looked++
+
+	type resp struct {
+		Root       string  `json:"root"`
+		Name       string  `json:"name"`
+		CreateTime int64   `json:"createTime"`
+		Deadline   int64   `json:"deadline"`
+		Items      []*item `json:"items"`
+	}
+
+	ret := &resp{
+		Root:       shared.Path,
+		Name:       shared.Filename[0],
+		CreateTime: shared.CreateTime,
+		Deadline:   shared.Deadline,
+	}
+	if len(shared.Filename) > 1 {
+		ret.Name += "等"
+	}
+
+	dirInfo, err := filePtr.FileInfo.findDir(shared.Path, false)
+	if err != nil {
+		wait.SetResult(err.Error(), nil)
+		return
+	}
+
+	items := make([]*item, 0, len(shared.Filename))
+	for _, name := range shared.Filename {
+		info, ok := dirInfo.FileInfos[name]
+		if ok && (info.IsDir || info.FileSize != 0) {
+			_item := &item{
+				Filename: info.Name,
+				IsDir:    info.IsDir,
+				Date:     info.ModeTime,
+			}
+			if info.IsDir {
+				_item.Size = "-"
+			} else {
+				_item.Size = ConvertBytesString(info.FileSize)
+			}
+
+			items = append(items, _item)
+		}
+	}
+
+	ret.Items = items
+	wait.SetResult("", ret)
+
+}
+
+func (this *shareHandler) list(wait *WaitConn, req struct {
 	Key         string `json:"key"`
 	SharedToken string `json:"sharedToken"`
 	Path        string `json:"path"`
@@ -100,19 +177,11 @@ func (*shareHandler) list(wait *WaitConn, req struct {
 
 	defer func() { wait.Done() }()
 
-	shared, ok := fileShared[req.Key]
-	if !ok || (shared.Deadline != 0 && time.Now().Unix() > shared.Deadline) {
-		wait.SetResult("分享链接已过期", nil)
-		delete(fileShared, req.Key)
+	shared, err := this.checkShared(req.Key, req.SharedToken)
+	if err != nil {
+		wait.SetResult(err.Error(), nil)
 		return
 	}
-
-	if shared.SharedToken != req.SharedToken {
-		wait.SetResult("提取码错误", nil)
-		return
-	}
-
-	shared.Looked++
 
 	if req.Path == shared.Path {
 		// 根
@@ -142,9 +211,8 @@ func (*shareHandler) list(wait *WaitConn, req struct {
 		}
 
 		wait.SetResult("", struct {
-			Root  string  `json:"root"`
 			Items []*item `json:"items"`
-		}{Root: shared.Path, Items: items})
+		}{Items: items})
 
 	} else {
 		// 子目录
@@ -178,16 +246,24 @@ func (*shareHandler) list(wait *WaitConn, req struct {
 				if info.IsDir {
 					_item.Size = "-"
 				} else {
-					_item.Size = ConvertBytesString(uint64(info.FileSize))
+					_item.Size = ConvertBytesString(info.FileSize)
 				}
 
 				items = append(items, _item)
 			}
 		}
+
 		wait.SetResult("", struct {
-			Root  string  `json:"root"`
 			Items []*item `json:"items"`
-		}{Root: shared.Path, Items: items})
+		}{Items: items})
+
 	}
 
+}
+
+type shareDownloadArg struct {
+	Key         string `json:"key"`
+	SharedToken string `json:"sharedToken"`
+	Path        string `json:"path"`
+	Filename    string `json:"filename"`
 }

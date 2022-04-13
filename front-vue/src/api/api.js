@@ -85,10 +85,27 @@ export function sharedCreate (parameter) {
   })
 }
 
+export function sharedInfo (parameter) {
+  return request({
+    url: "shared/info",
+    method: 'post',
+    data: parameter
+  })
+}
+
 export function sharedList (parameter) {
   return request({
-    url: "shared/create",
+    url: "shared/list",
     method: 'post',
+    data: parameter
+  })
+}
+
+export function sharedDownload (parameter) {
+  return request({
+    url: "shared/download",
+    method: 'post',
+    responseType:"blob",
     data: parameter
   })
 }
