@@ -20,7 +20,7 @@ func nowFormat() string {
 }
 
 func GenToken(l int) string {
-	s := "0123456789qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPLKJHGFDSAZXCVBNM"
+	s := "0123456789qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPLKJHGFDSAZXCVBNM_"
 	tkn := bytes.Buffer{}
 	for i := 0; i < l; i++ {
 		idx := rand.Int() % len(s)

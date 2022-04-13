@@ -32,7 +32,7 @@
         </template>
         <template v-else>
           <a-button-group >
-            <a-button icon="share-alt" @click="()=>{$message.info('功能未实现')}">分享</a-button>
+            <a-button icon="share-alt" @click="openShareModal">分享</a-button>
             <a-button icon="download" v-show="this.showDownload()" @click="handleDownload">下载</a-button>
             <a-button icon="delete" @click="openRemoveModal">删除</a-button>
             <a-button icon="form" v-show="this.selectedNames.length === 1" @click="openRename">重命名</a-button>
@@ -197,6 +197,40 @@
     <a-button type="primary" shape="round" @click="handleRemove">删除</a-button>
     </p>
   </a-modal>
+
+  <!-- 分享对话框 -->
+  <a-modal 
+  v-model="shareModalVisible" 
+  :title="shareTitle" 
+  width="500px"
+  centered
+  footer=""
+  >
+    <div style="height:180px">
+    <template v-if="shareCreate">
+      <a-row>
+        <a-col :span="4" style="height:54px;line-height:40px;">有效期：</a-col>
+        <a-col :span="18"><a-slider v-model="shareTime" :marks="{1:'1天',7:'7天',30:'30天'}" :min="1" :max="30" /></a-col>
+      </a-row>
+      <br/><br/><br/>
+      <p style="text-align: center"><a-button type="primary" shape="round" @click="handleShareCreate">创建链接</a-button></p>
+    </template>
+    <template v-else>
+      <p style="text-align: center"> <a-input style="width: 300px"  v-model="sharedRoute" disabled></a-input></p>
+      <p style="text-align: center">提取码 <a-input style="width: 60px" v-model="sharedToken" disabled></a-input></p>
+      <br/>
+      <p style="text-align: center">
+        <a-button 
+        type="primary" 
+        shape="round" 
+        v-clipboard:copy="sharedCopyText" 
+        v-clipboard:success="()=>{this.sharedCopied = true}"
+        >复制链接及提取码</a-button>
+      </p>
+      <p v-show="this.sharedCopied" style="text-align: center;color:#66B3FF">复制链接成功</p>
+    </template>
+    </div>
+  </a-modal>
  </div>
 </template>
 <script>
@@ -208,6 +242,7 @@ uploadFile,
 fileRemove,
 rename,
 downloadFile,
+sharedCreate,
 mvcp} from "@/api/api"
 import SparkMD5 from "spark-md5";
 
@@ -217,8 +252,8 @@ export default {
     return {
       columns:[
         {title:'文件名',dataIndex: 'filename',width:'60%',scopedSlots: { customRender: 'name' }},
-        {title:'修改时间',dataIndex: 'date'},
         {title:'大小',dataIndex: 'size'},
+        {title:'修改时间',dataIndex: 'date'},
       ],
       selectedRowKeys:[],
       selectedNames:[],
@@ -259,6 +294,17 @@ export default {
       showTransfer:false,
       showTransferUploadList:true,
       uploadList:{},
+
+      // 分享
+      shareModalVisible:false,
+      shareTitle:"",
+      shareCreate:true,
+      shareTime:1,
+      sharedRoute:"",
+      sharedToken:"",
+      sharedDeadline:0,
+      sharedCopyText:"",
+      sharedCopied:false,
     }
   },
   mounted () {
@@ -508,7 +554,7 @@ export default {
         this.getList(path)
       })
       .finally(() => {
-        this.renameIndex = -1
+        this.handleRenameCancle()
       })
     },
     handleRenameCancle(){
@@ -622,6 +668,33 @@ export default {
           })
         }
       }
+    },
+    openShareModal(){
+      if (this.selectedNames.length === 0){
+        return
+      }
+      this.shareModalVisible = true;
+      this.shareCreate = true;
+      this.shareTime = 7
+      this.shareTitle = "分享文件(夹):"
+      this.sharedCopied = false
+      if (this.selectedNames.length === 1){
+        this.shareTitle += this.selectedNames[0]
+      }else{
+        this.shareTitle += this.selectedNames[0] + "等"
+      }
+    },
+    handleShareCreate(){
+      const args = {path:this.navs.join("/"),filename:this.selectedNames,deadline:this.shareTime}
+      sharedCreate(args)
+      .then((ret)=>{
+        this.shareCreate = false;
+        this.sharedRoute = ret.route;
+        this.sharedToken = ret.sharedToken;
+        this.sharedDeadline = ret.deadline;
+        this.sharedCopyText = "链接：" + this.sharedRoute + "  提取码：" + this.sharedToken
+      })
+      
     }
   },
 

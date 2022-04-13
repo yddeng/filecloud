@@ -76,3 +76,19 @@ export function downloadFile (parameter) {
     data: parameter
   })
 }
+
+export function sharedCreate (parameter) {
+  return request({
+    url: "shared/create",
+    method: 'post',
+    data: parameter
+  })
+}
+
+export function sharedList (parameter) {
+  return request({
+    url: "shared/create",
+    method: 'post',
+    data: parameter
+  })
+}

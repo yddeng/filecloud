@@ -7,11 +7,13 @@ import (
 )
 
 type fileShare struct {
-	Key      string   `json:"key"` // 路由
-	Path     string   `json:"path"`
-	Filename []string `json:"filename"` // 分享的文件、文件夹。
-	Token    string   `json:"token"`    // 访问密码
-	Deadline int64    `json:"deadline"` // 到期时间戳 单位秒
+	Key         string   `json:"key"` // 路由
+	Path        string   `json:"path"`
+	Filename    []string `json:"filename"`    // 分享的文件、文件夹。
+	SharedToken string   `json:"sharedToken"` // 访问密码
+	CreateTime  int64    `json:"createTime"`  // 分享时间 单位秒
+	Deadline    int64    `json:"deadline"`    // 到期时间戳 单位秒
+	Looked      int      `json:"looked"`      // 浏览次数
 }
 
 // 服务器重启后，清空
@@ -52,48 +54,48 @@ func (this *shareHandler) create(wait *WaitConn, req struct {
 		}
 	}
 
-	key := GenToken(12)
+	key := GenToken(16)
 	for {
 		if _, ok := fileShared[key]; !ok {
 			break
+		} else {
+			key = GenToken(16)
 		}
 	}
 
+	now := time.Now()
 	shared := &fileShare{
-		Key:      key,
-		Path:     req.Path,
-		Filename: req.Filename,
-		Token:    GenToken(4),
-		Deadline: 0,
+		Key:         key,
+		Path:        req.Path,
+		Filename:    req.Filename,
+		SharedToken: GenToken(4),
+		CreateTime:  now.Unix(),
+		Deadline:    0,
 	}
 	if req.Deadline > 0 {
-		shared.Deadline = time.Now().Add(time.Hour * time.Duration(24*req.Deadline)).Unix()
+		shared.Deadline = now.Add(time.Hour * 24 * time.Duration(req.Deadline)).Unix()
 	}
 
 	fileShared[key] = shared
 
 	wait.SetResult("", struct {
-		Route    string `json:"route"`
-		Token    string `json:"token"`
-		Deadline int64  `json:"deadline"`
+		Route       string `json:"route"`
+		SharedToken string `json:"sharedToken"`
+		Deadline    int64  `json:"deadline"`
 	}{
-		Route:    this.getSharedRoute(shared),
-		Token:    shared.Token,
-		Deadline: shared.Deadline,
+		Route:       this.getSharedRoute(shared),
+		SharedToken: shared.SharedToken,
+		Deadline:    shared.Deadline,
 	})
 
-	// 链接: https://pan.baidu.com/s/1ilIvYpJc2i6mkrfq3P_UNQ 提取码: 43cc
-
-}
-
-type sharedArg struct {
-	Key   string `json:"key"`
-	Token string `json:"token"`
-	Path  string `json:"path"`
 }
 
 // 动态路由
-func (*shareHandler) list(wait *WaitConn, req *sharedArg) {
+func (*shareHandler) list(wait *WaitConn, req struct {
+	Key         string `json:"key"`
+	SharedToken string `json:"sharedToken"`
+	Path        string `json:"path"`
+}) {
 	logger.Infof("%s %v", wait.GetRoute(), req)
 
 	defer func() { wait.Done() }()
@@ -105,10 +107,12 @@ func (*shareHandler) list(wait *WaitConn, req *sharedArg) {
 		return
 	}
 
-	if shared.Token != req.Token {
+	if shared.SharedToken != req.SharedToken {
 		wait.SetResult("提取码错误", nil)
 		return
 	}
+
+	shared.Looked++
 
 	if req.Path == shared.Path {
 		// 根
@@ -137,10 +141,10 @@ func (*shareHandler) list(wait *WaitConn, req *sharedArg) {
 			}
 		}
 
-		wait.SetResult("", &fileListData{
-			Total: len(items),
-			Items: items,
-		})
+		wait.SetResult("", struct {
+			Root  string  `json:"root"`
+			Items []*item `json:"items"`
+		}{Root: shared.Path, Items: items})
 
 	} else {
 		// 子目录
@@ -180,10 +184,10 @@ func (*shareHandler) list(wait *WaitConn, req *sharedArg) {
 				items = append(items, _item)
 			}
 		}
-		wait.SetResult("", &fileListData{
-			Total: len(items),
-			Items: items,
-		})
+		wait.SetResult("", struct {
+			Root  string  `json:"root"`
+			Items []*item `json:"items"`
+		}{Root: shared.Path, Items: items})
 	}
 
 }
