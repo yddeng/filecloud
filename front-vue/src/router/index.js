@@ -22,6 +22,11 @@ export default new Router({
       component: () => import('@/views/Filecloud')
     },
     {
+      path: '/filecloud/login',
+      meta:{title:'个人云盘登陆'},
+      component: () => import('@/views/Login')
+    },
+    {
       path: '/shared/s/:key',
       meta:{title:'个人云盘分享'},
       component: () => import('@/views/FileShared')
@@ -34,11 +39,6 @@ export default new Router({
       path: '/404',
       meta:{title:'404'},
       component: () => import('@/views/404')
-    },
-    {
-      path: '/filecloud/login',
-      meta:{title:'个人云盘登陆'},
-      component: () => import('@/views/Login')
     }
   ]
 })
