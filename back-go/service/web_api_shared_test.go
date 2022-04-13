@@ -9,13 +9,20 @@ import (
 )
 
 func TestShareInfo(t *testing.T) {
+	ret := authLogin(t, "yddeng", "123456")
+	fmt.Println(ret, gjson.Get(ret, "data.token").String())
+
+	token := gjson.Get(ret, "data.token").String()
+
 	elem := map[string]interface{}{
 		"path":     "cloud",
 		"filename": []string{"111", "babel.config.js"},
 		"deadline": 7,
 	}
 
-	req, _ := dhttp.PostJson("http://127.0.0.1:9987/shared/create", elem)
+	req, _ := dhttp.NewRequest(fmt.Sprintf("http://%s/shared/create", address), "POST")
+	req.SetHeader("Access-Token", token)
+	req.WriteJSON(elem)
 	ret, err := req.ToString()
 	fmt.Println(ret, err)
 
@@ -24,7 +31,9 @@ func TestShareInfo(t *testing.T) {
 		"sharedToken": gjson.Get(ret, "data.sharedToken").String(),
 	}
 
-	req, _ = dhttp.PostJson("http://127.0.0.1:9987/shared/info", elem)
+	req, _ = dhttp.NewRequest(fmt.Sprintf("http://%s/shared/info", address), "POST")
+	//req.SetHeader("Access-Token", token)
+	req.WriteJSON(elem)
 	ret, err = req.ToString()
 	fmt.Println(ret, err)
 }
@@ -32,12 +41,12 @@ func TestShareInfo(t *testing.T) {
 func TestShareList(t *testing.T) {
 	// 链接：http://127.0.0.1:9987/shared/s/eHr6Qp2ji9mqKmoN  提取码：F9bS
 	elem := map[string]interface{}{
-		"key":         "eHr6Qp2ji9mqKmoN",
+		"key":         "6JvwhI0a6zddfZqW",
 		"path":        "cloud",
-		"sharedToken": "F9bS",
+		"sharedToken": "PlA7",
 	}
 
-	req, _ := dhttp.PostJson("http://127.0.0.1:9987/shared/list", elem)
+	req, _ := dhttp.PostJson(fmt.Sprintf("http://%s/shared/list", address), elem)
 	ret, err := req.ToString()
 	fmt.Println(ret, err)
 }

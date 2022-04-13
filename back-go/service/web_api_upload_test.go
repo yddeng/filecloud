@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"github.com/yddeng/dnet/dhttp"
 	"io/ioutil"
 	"mime/multipart"
@@ -14,6 +15,11 @@ import (
 )
 
 func TestUpload(t *testing.T) {
+	ret := authLogin(t, "yddeng", "123456")
+	fmt.Println(ret, gjson.Get(ret, "data.token").String())
+
+	token := gjson.Get(ret, "data.token").String()
+
 	filePath := "./config.go"
 
 	md5, err := fileMD5(filePath)
@@ -22,17 +28,17 @@ func TestUpload(t *testing.T) {
 	}
 
 	uploadPath := "cloud"
-	if err := fileCheck(uploadPath, filePath, md5); err != nil {
+	if err := fileCheck(token, uploadPath, filePath, md5); err != nil {
 		panic(err)
 	}
 
-	if err := fileUpload(uploadPath, filePath, md5); err != nil {
+	if err := fileUpload(token, uploadPath, filePath, md5); err != nil {
 		panic(err)
 	}
 
 }
 
-func fileCheck(uploadPath, filePath, md5 string) error {
+func fileCheck(token, uploadPath, filePath, md5 string) error {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return err
@@ -53,13 +59,15 @@ func fileCheck(uploadPath, filePath, md5 string) error {
 		"size":     len(data),
 	}
 
-	req, _ := dhttp.PostJson("http://127.0.0.1:9987/upload/check", elem)
+	req, _ := dhttp.NewRequest(fmt.Sprintf("http://%s/upload/check", address), "POST")
+	req.SetHeader("Access-Token", token)
+	req.WriteJSON(elem)
 	ret, err := req.ToString()
 	fmt.Println(ret)
 	return err
 }
 
-func fileUpload(uploadPath, filePath, md5 string) error {
+func fileUpload(token, uploadPath, filePath, md5 string) error {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return err
@@ -77,7 +85,9 @@ func fileUpload(uploadPath, filePath, md5 string) error {
 
 	for i := 0; i < cnt; i++ {
 		go func(i int) {
-			req, _ := http.NewRequest("POST", "http://127.0.0.1:9987/upload/upload", nil)
+
+			req, _ := http.NewRequest("POST", fmt.Sprintf("http://%s/upload/upload", address), nil)
+			req.Header.Set("Access-Token", token)
 
 			buf := new(bytes.Buffer)
 			writer := multipart.NewWriter(buf)

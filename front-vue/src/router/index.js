@@ -1,6 +1,12 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 
+const originalPush = Router.prototype.push
+Router.prototype.push = function push (location, onResolve, onReject) {
+  if (onResolve || onReject) return originalPush.call(this, location, onResolve, onReject)
+  return originalPush.call(this, location).catch(err => err)
+}
+
 Vue.use(Router)
 
 export default new Router({
@@ -11,13 +17,11 @@ export default new Router({
       redirect: '/filecloud',
     },
     {
-      name: 'filecloud',
       path: '/filecloud',
       meta:{title:'个人云盘'},
       component: () => import('@/views/Filecloud')
     },
     {
-      name: 'fileshare',
       path: '/shared/s/:key',
       meta:{title:'个人云盘分享'},
       component: () => import('@/views/FileShared')
@@ -28,7 +32,13 @@ export default new Router({
     },
     {
       path: '/404',
+      meta:{title:'404'},
       component: () => import('@/views/404')
+    },
+    {
+      path: '/filecloud/login',
+      meta:{title:'个人云盘登陆'},
+      component: () => import('@/views/Login')
     }
   ]
 })

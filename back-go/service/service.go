@@ -10,12 +10,12 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
-	app         *gin.Engine
-	taskQueue   *task.TaskPool
-	accessToken string
+	app       *gin.Engine
+	taskQueue *task.TaskPool
 )
 
 func Launch() {
@@ -59,13 +59,31 @@ func Stop() {
 
 }
 
-func checkToken(ctx *gin.Context, route string) bool {
-	if accessToken != "" {
-		if tkn := ctx.GetHeader("Access-Token"); tkn != accessToken {
-			return false
-		}
+var (
+	// 允许无token的路由
+	allowTokenRoute = map[string]struct{}{
+		"/auth/login":      {},
+		"/shared/info":     {},
+		"/shared/list":     {},
+		"/shared/download": {},
 	}
-	return true
+)
+
+func checkToken(ctx *gin.Context, route string) bool {
+	if _, ok := allowTokenRoute[route]; ok {
+		return true
+	}
+	tkn := ctx.GetHeader("Access-Token")
+	if tkn == "" {
+		return false
+	}
+
+	if accessToken == "" || time.Now().After(accessTokenExpire) {
+		accessToken = ""
+		accessTokenExpire = time.Time{}
+		return false
+	}
+	return tkn == accessToken
 }
 
 // 应答结构
@@ -201,6 +219,10 @@ func WarpHandle(fn interface{}) gin.HandlerFunc {
 }
 
 func initHandler(app *gin.Engine) {
+	authHandle := new(authHandler)
+	authGroup := app.Group("/auth")
+	authGroup.POST("/login", WarpHandle(authHandle.login))
+
 	fileHandle := new(fileHandler)
 	fileGroup := app.Group("/file")
 	fileGroup.POST("/mkdir", WarpHandle(fileHandle.mkdir))

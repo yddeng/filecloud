@@ -10,6 +10,8 @@ type Config struct {
 	FilePath         string `toml:"FilePath"`
 	FileDiskTotal    uint64 `toml:"FileDiskTotal"`
 	SaveFileMultiple bool   `toml:"SaveFileMultiple"`
+	Username         string `toml:"Username"`
+	Password         string `toml:"Password"`
 }
 
 var config *Config
