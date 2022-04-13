@@ -113,7 +113,7 @@ export default {
   },
   mounted () {
     console.log(this.$route);
-    this.sharedKey = "5Pa2WpBcXeYqz3lf"
+    this.sharedKey = this.$route.params.key
     if (this.sharedToken === ""){
       this.sharedModalToken = true
     }
