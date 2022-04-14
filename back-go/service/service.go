@@ -220,6 +220,7 @@ var (
 		"/upload/upload": {},
 
 		"/shared/create": {},
+		"/shared/list":   {},
 	}
 )
 
@@ -273,6 +274,7 @@ func initHandler(app *gin.Engine) {
 	shareHandle := new(shareHandler)
 	shareGroup := app.Group("/shared")
 	shareGroup.POST("/create", WarpHandle(shareHandle.create))
+	shareGroup.POST("/list", WarpHandle(shareHandle.list))
 	//shareGroup.POST("/s/:key", func(ctx *gin.Context) {
 	//	// 动态路由
 	//	var req *sharedCheckArg
@@ -289,7 +291,7 @@ func initHandler(app *gin.Engine) {
 	//	transBegin(ctx, shareHandle.list, reflect.ValueOf(req))
 	//})
 	shareGroup.POST("/info", WarpHandle(shareHandle.info))
-	shareGroup.POST("/list", WarpHandle(shareHandle.list))
+	shareGroup.POST("/path", WarpHandle(shareHandle.path))
 	shareGroup.POST("/download", func(ctx *gin.Context) {
 		var req *shareDownloadArg
 		if err := ctx.ShouldBindJSON(&req); err != nil {

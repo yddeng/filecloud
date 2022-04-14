@@ -93,7 +93,7 @@ export function sharedInfo (parameter) {
 
 export function sharedList (parameter) {
   return request({
-    url: "shared/list",
+    url: "shared/path",
     method: 'post',
     data: parameter
   })

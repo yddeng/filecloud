@@ -38,7 +38,7 @@ func TestShareInfo(t *testing.T) {
 	fmt.Println(ret, err)
 }
 
-func TestShareList(t *testing.T) {
+func TestSharePath(t *testing.T) {
 	// 链接：http://127.0.0.1:9987/shared/s/eHr6Qp2ji9mqKmoN  提取码：F9bS
 	elem := map[string]interface{}{
 		"key":         "6JvwhI0a6zddfZqW",
@@ -46,7 +46,19 @@ func TestShareList(t *testing.T) {
 		"sharedToken": "PlA7",
 	}
 
-	req, _ := dhttp.PostJson(fmt.Sprintf("http://%s/shared/list", address), elem)
+	req, _ := dhttp.PostJson(fmt.Sprintf("http://%s/shared/path", address), elem)
+	ret, err := req.ToString()
+	fmt.Println(ret, err)
+}
+
+func TestShareList(t *testing.T) {
+	ret := authLogin(t, "yddeng", "123456")
+	fmt.Println(ret, gjson.Get(ret, "data.token").String())
+
+	token := gjson.Get(ret, "data.token").String()
+
+	req, _ := dhttp.NewRequest(fmt.Sprintf("http://%s/shared/list", address), "POST")
+	req.SetHeader("Access-Token", token)
 	ret, err := req.ToString()
 	fmt.Println(ret, err)
 }

@@ -27,6 +27,11 @@ func (*shareHandler) getSharedRoute(shared *fileShare) string {
 	return "http://" + config.WebAddr + "/shared/s/" + shared.Key
 }
 
+func (this *shareHandler) list(wait *WaitConn) {
+	defer func() { wait.Done() }()
+	wait.SetResult("", fileShared)
+}
+
 func (this *shareHandler) create(wait *WaitConn, req struct {
 	Path     string   `json:"path"`
 	Filename []string `json:"filename"`
@@ -102,6 +107,12 @@ func (*shareHandler) checkShared(key, token string) (*fileShare, error) {
 		return nil, errors.New("提取码错误")
 	}
 
+	_, err := filePtr.FileInfo.findDir(shared.Path, false)
+	if err != nil {
+		delete(fileShared, key)
+		return nil, errors.New("分享链接已取消")
+	}
+
 	return shared, nil
 }
 
@@ -168,7 +179,7 @@ func (this *shareHandler) info(wait *WaitConn, req struct {
 
 }
 
-func (this *shareHandler) list(wait *WaitConn, req struct {
+func (this *shareHandler) path(wait *WaitConn, req struct {
 	Key         string `json:"key"`
 	SharedToken string `json:"sharedToken"`
 	Path        string `json:"path"`
