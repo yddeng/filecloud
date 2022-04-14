@@ -61,7 +61,7 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 
 	items := make([]*item, 0, len(info.FileInfos))
 	for _, info := range info.FileInfos {
-		if info.IsDir || info.FileSize != 0 {
+		if info.IsDir || info.FileMD5 != "" {
 			_item := &item{
 				Filename: info.Name,
 				IsDir:    info.IsDir,
@@ -70,7 +70,7 @@ func (*fileHandler) list(wait *WaitConn, req struct {
 			if info.IsDir {
 				_item.Size = "-"
 			} else {
-				_item.Size = ConvertBytesString(uint64(info.FileSize))
+				_item.Size = ConvertBytesString(info.FileSize)
 			}
 
 			items = append(items, _item)
@@ -235,7 +235,7 @@ func download(ctx *gin.Context, req *downloadArg) {
 	}
 
 	file, ok := info.FileInfos[req.Filename]
-	if !ok || file.FileSize == 0 {
+	if !ok || file.FileMD5 == "" {
 		// 需要是一个存在的文件类型
 		ctx.Status(http.StatusBadRequest)
 		return

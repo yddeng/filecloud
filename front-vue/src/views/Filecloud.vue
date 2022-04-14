@@ -338,7 +338,7 @@ export default {
           }
           return -1
         })
-       //console.log(res);
+       console.log(res);
       })
     },
     goback(){

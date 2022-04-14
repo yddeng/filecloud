@@ -1,7 +1,9 @@
 import axios from 'axios'
 import { VueAxios } from './axios'
 import message from 'ant-design-vue/es/message'
-import { target } from '@/config/config'
+import { target } from '@/config/'
+import storage from 'store'
+import { ACCESS_TOKEN }from '@/store'
 
 // 创建 axios 实例
 const request = axios.create({
@@ -12,16 +14,36 @@ const request = axios.create({
 
 // 异常拦截处理器
 const errorHandler = (error) => {
+  //console.log(error);
   if (error.response){
-    //if (error.response.status === 400){
+    if (error.response.status === 401){
+      // token 验证失败
+      message.error('授权验证失败');
+      const token = storage.get(ACCESS_TOKEN)
+      if(token){
+        //storage.commit("SetToken",'')
+        storage.remove(ACCESS_TOKEN)
+      }
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    }else{
       message.error(error.response.statusText);
-    //}
+    }
   }
   return Promise.reject(error)
 }
 
+
 // request interceptor
 request.interceptors.request.use(config => {
+  const token = storage.get(ACCESS_TOKEN)
+  // 如果 token 存在
+  // 让每个请求携带自定义 token
+  //console.log(token);
+  if (token) {
+    config.headers[ACCESS_TOKEN] = token
+  }
   return config
 }, errorHandler)
 

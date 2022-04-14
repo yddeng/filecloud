@@ -2,8 +2,8 @@ import Vue from 'vue'
 import App from './App.vue'
 import Antd from 'ant-design-vue';
 import router from './router'
-import store from './store'
-import  storage ,{ ACCESS_TOKEN} from 'store'
+import store,{  ACCESS_TOKEN }from './store'
+import  storage from 'store'
 import 'ant-design-vue/dist/antd.css';
 
 Vue.config.productionTip = false
@@ -17,18 +17,21 @@ import moment from 'moment'
 // http://momentjs.cn/docs/#/use-it/
 moment.locale('zh-cn')
 
+const allowList = ['login','fileshared'] // no redirect allowList
 const loginRoutePath = '/filecloud/login'
+
 router.beforeEach((to, from, next) => {
   if (to.meta.title){
     document.title = to.meta.title
   }
 
   const token = storage.get(ACCESS_TOKEN)
-  console.log(token);
+  console.log(ACCESS_TOKEN,token,to);
   if (token) {
     next()
   } else {
-    if (to.path === loginRoutePath) {
+    if (allowList.includes(to.name)) {
+      // 在免登录名单，直接进入
       next()
     } else {
       next({ path: loginRoutePath, query: { redirect: to.fullPath } })

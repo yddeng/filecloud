@@ -148,7 +148,7 @@ func calUsedDisk() {
 	used := uint64(0)
 	walk(filePtr.FileInfo, func(file *fileInfo) error {
 		if !file.IsDir && file.FileSize != 0 {
-			used += uint64(file.FileSize)
+			used += file.FileSize
 		}
 		return nil
 	})

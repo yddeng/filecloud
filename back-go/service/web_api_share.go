@@ -147,7 +147,7 @@ func (this *shareHandler) info(wait *WaitConn, req struct {
 	items := make([]*item, 0, len(shared.Filename))
 	for _, name := range shared.Filename {
 		info, ok := dirInfo.FileInfos[name]
-		if ok && (info.IsDir || info.FileSize != 0) {
+		if ok && (info.IsDir || info.FileMD5 != "") {
 			_item := &item{
 				Filename: info.Name,
 				IsDir:    info.IsDir,
@@ -194,7 +194,7 @@ func (this *shareHandler) list(wait *WaitConn, req struct {
 		items := make([]*item, 0, len(shared.Filename))
 		for _, name := range shared.Filename {
 			info, ok := dirInfo.FileInfos[name]
-			if ok && (info.IsDir || info.FileSize != 0) {
+			if ok && (info.IsDir || info.FileMD5 != "") {
 				_item := &item{
 					Filename: info.Name,
 					IsDir:    info.IsDir,
@@ -237,7 +237,7 @@ func (this *shareHandler) list(wait *WaitConn, req struct {
 
 		items := make([]*item, 0, len(dirInfo.FileInfos))
 		for _, info := range dirInfo.FileInfos {
-			if info.IsDir || info.FileSize != 0 {
+			if info.IsDir || info.FileMD5 != "" {
 				_item := &item{
 					Filename: info.Name,
 					IsDir:    info.IsDir,

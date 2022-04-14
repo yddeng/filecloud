@@ -14,19 +14,22 @@ export default new Router({
   routes: [
     {
       path: '/',
-      redirect: '/filecloud',
+      redirect: '/filecloud/login',
     },
     {
+      name:'filecloud',
       path: '/filecloud',
       meta:{title:'个人云盘'},
       component: () => import('@/views/Filecloud')
     },
     {
+      name:"login",
       path: '/filecloud/login',
       meta:{title:'个人云盘登陆'},
       component: () => import('@/views/Login')
     },
     {
+      name:'fileshared',
       path: '/shared/s/:key',
       meta:{title:'个人云盘分享'},
       component: () => import('@/views/FileShared')

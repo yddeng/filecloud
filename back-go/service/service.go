@@ -31,7 +31,17 @@ func Launch() {
 	// 跨域
 	app.Use(func(ctx *gin.Context) {
 		ctx.Header("Access-Control-Allow-Origin", "*")
-		ctx.Header("Access-Control-Allow-Headers", "Content-Type")
+		ctx.Header("Access-Control-Allow-Headers", "*")
+		ctx.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, PATCH")
+		ctx.Header("Access-Control-Allow-Credentials", "true")
+		ctx.Header("Access-Control-Expose-Headers", "*")
+		if ctx.Request.Method == "OPTIONS" {
+			// 处理浏览器的options请求时，返回200状态即可
+			ctx.JSON(http.StatusOK, "")
+			ctx.Abort()
+			return
+		}
+
 		ctx.Next()
 	})
 
@@ -59,33 +69,6 @@ func Stop() {
 
 }
 
-var (
-	// 允许无token的路由
-	allowTokenRoute = map[string]struct{}{
-		"/auth/login":      {},
-		"/shared/info":     {},
-		"/shared/list":     {},
-		"/shared/download": {},
-	}
-)
-
-func checkToken(ctx *gin.Context, route string) bool {
-	if _, ok := allowTokenRoute[route]; ok {
-		return true
-	}
-	tkn := ctx.GetHeader("Access-Token")
-	if tkn == "" {
-		return false
-	}
-
-	if accessToken == "" || time.Now().After(accessTokenExpire) {
-		accessToken = ""
-		accessTokenExpire = time.Time{}
-		return false
-	}
-	return tkn == accessToken
-}
-
 // 应答结构
 type Result struct {
 	Success bool        `json:"success"`
@@ -94,6 +77,7 @@ type Result struct {
 }
 
 type WaitConn struct {
+	code     int
 	ctx      *gin.Context
 	route    string
 	result   Result
@@ -104,15 +88,19 @@ type WaitConn struct {
 func newWaitConn(ctx *gin.Context, route string) *WaitConn {
 	return &WaitConn{
 		ctx:   ctx,
+		code:  http.StatusOK,
 		route: route,
 		done:  make(chan struct{}),
 	}
 }
 
-func (this *WaitConn) Done() {
+func (this *WaitConn) Done(code ...int) {
 	this.doneOnce.Do(func() {
 		if this.result.Message == "" {
 			this.result.Success = true
+		}
+		if len(code) > 0 {
+			this.code = code[0]
 		}
 		close(this.done)
 	})
@@ -157,7 +145,7 @@ func transBegin(ctx *gin.Context, fn interface{}, args ...reflect.Value) {
 		ok := checkToken(ctx, route)
 		if !ok {
 			wait.SetResult("Token验证失败", nil)
-			wait.Done()
+			wait.Done(401)
 			return
 		}
 		val.Call(append([]reflect.Value{reflect.ValueOf(wait)}, args...))
@@ -167,7 +155,7 @@ func transBegin(ctx *gin.Context, fn interface{}, args ...reflect.Value) {
 	}
 	wait.Wait()
 
-	ctx.JSON(http.StatusOK, wait.result)
+	ctx.JSON(wait.code, wait.result)
 }
 
 func getCurrentRoute(ctx *gin.Context) string {
@@ -216,6 +204,41 @@ func WarpHandle(fn interface{}) gin.HandlerFunc {
 	default:
 		panic("func symbol error")
 	}
+}
+
+var (
+	// 需要验证token的路由
+	routeNeedToken = map[string]struct{}{
+		"/file/list":     {},
+		"/file/mkdir":    {},
+		"/file/remove":   {},
+		"/file/rename":   {},
+		"/file/mvcp":     {},
+		"/file/download": {},
+
+		"/upload/check":  {},
+		"/upload/upload": {},
+
+		"/shared/create": {},
+	}
+)
+
+func checkToken(ctx *gin.Context, route string) bool {
+	if _, ok := routeNeedToken[route]; !ok {
+		return true
+	}
+	tkn := ctx.GetHeader("Access-Token")
+	if tkn == "" {
+		return false
+	}
+
+	if accessTokenExpire.IsZero() || time.Now().After(accessTokenExpire) {
+		accessToken = ""
+		accessTokenExpire = time.Time{}
+		return false
+	}
+
+	return tkn == accessToken
 }
 
 func initHandler(app *gin.Engine) {
