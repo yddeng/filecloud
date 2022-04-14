@@ -60,19 +60,21 @@
     <!-- token -->
     <a-modal 
     v-model="sharedModalToken" 
-    title="提取分享链接" 
     width="500px"
     centered
-    :maskStyle="{opacity:1,background:'#F0F0F0'}"
+    :maskStyle="{opacity:1,background:'#FCFCFC'}"
     :maskClosable="false"
     :closable="false"
     footer=""
     >
-      <div style="height:180px">
-        <br/>
-        <p>请输入提取码：</p>
-        <a-input v-model="sharedModalValue" style="width:300px" @keyup.enter="handleSharedInfo"></a-input>&nbsp;
-        <a-button type="primary" @click="handleSharedInfo">提取文件</a-button>
+      <div style="height:240px">
+        <div style="height:50px;line-height:36px;text-align:center;border-bottom: 2px solid #F0F0F0;">
+          <img src="@/assets/logo.png" alt="logo" style="width:28px;height:28px;">&nbsp;
+          <span style="font-size:24px;font-weight: 600;">个人云盘</span>
+        </div>
+        <p style="font-size:16px;margin-top:40px">请输入提取码：</p>
+        <a-input v-model="sharedModalValue" style="width:320px" size="large" @keyup.enter="handleSharedInfo"></a-input>&nbsp;
+        <a-button type="primary" size="large" @click="handleSharedInfo">提取文件</a-button>
         <p v-show="this.sharedTokenCheckFailed" style="color:	#FF5151;font-size:12px">{{sharedTokenCheckText}}</p>
 
       </div>

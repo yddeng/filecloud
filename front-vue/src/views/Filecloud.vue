@@ -208,11 +208,12 @@
   >
     <div style="height:180px">
     <template v-if="shareCreate">
+      <br/>
       <a-row>
         <a-col :span="4" style="height:54px;line-height:40px;">有效期：</a-col>
         <a-col :span="18"><a-slider v-model="shareTime" :marks="{1:'1天',7:'7天',30:'30天'}" :min="1" :max="30" /></a-col>
       </a-row>
-      <br/><br/><br/>
+      <br/><br/>
       <p style="text-align: center"><a-button type="primary" shape="round" @click="handleShareCreate">创建链接</a-button></p>
     </template>
     <template v-else>

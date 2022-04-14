@@ -50,8 +50,6 @@ export default {
     handleLogin(){
       this.$refs.loginFormModel.validate(valid => {
         if (valid) {
-          //console.log(this.userInfo,this.$store);
-
           this.loadingLogin = true
           login(this.userInfo).then(ret => {
             storage.set("Access-Token", ret.token, 8 * 60 * 60 * 1000)
