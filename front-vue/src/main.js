@@ -2,7 +2,6 @@ import Vue from 'vue'
 import App from './App.vue'
 import Antd from 'ant-design-vue';
 import router from './router'
-import store,{  ACCESS_TOKEN }from './store'
 import  storage from 'store'
 import 'ant-design-vue/dist/antd.css';
 
@@ -13,8 +12,8 @@ Vue.use(Antd);
 import VueClipboard from 'vue-clipboard2'
 Vue.use(VueClipboard)
 
-import moment from 'moment'
 // http://momentjs.cn/docs/#/use-it/
+import moment from 'moment'
 moment.locale('zh-cn')
 
 const allowList = ['login','fileshared'] // no redirect allowList
@@ -25,8 +24,7 @@ router.beforeEach((to, from, next) => {
     document.title = to.meta.title
   }
 
-  const token = storage.get(ACCESS_TOKEN)
-  console.log(ACCESS_TOKEN,token,to);
+  const token = storage.get("Access-Token")
   if (token) {
     next()
   } else {
@@ -41,6 +39,5 @@ router.beforeEach((to, from, next) => {
 
 new Vue({
   router,
-  store,
   render: h => h(App)
 }).$mount('#app')

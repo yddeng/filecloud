@@ -308,7 +308,6 @@ export default {
     }
   },
   mounted () {
-    console.log(this.$route);
     this.navs.push(this.root);
     this.goto(0);
   },
@@ -338,7 +337,7 @@ export default {
           }
           return -1
         })
-       console.log(res);
+       //console.log(res);
       })
     },
     goback(){

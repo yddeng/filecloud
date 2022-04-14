@@ -1,6 +1,7 @@
 <template>
   <div class="body">
-  
+    <div v-if="!sharedChecked"></div>
+    <div v-else>
     <div id="header">
       <div id="header-title">
         <a-row justify="space-between" type="flex">
@@ -54,7 +55,7 @@
           <span v-else>{{text}}</span>
       </template>
     </a-table>
-  
+    </div>
 
     <!-- token -->
     <a-modal 
@@ -72,7 +73,7 @@
         <p>请输入提取码：</p>
         <a-input v-model="sharedModalValue" style="width:300px" @keyup.enter="handleSharedInfo"></a-input>&nbsp;
         <a-button type="primary" @click="handleSharedInfo">提取文件</a-button>
-        <p v-show="this.sharedTokenCheckFailed" style="color:	#FF5151;font-size:12px">提取码错误</p>
+        <p v-show="this.sharedTokenCheckFailed" style="color:	#FF5151;font-size:12px">{{sharedTokenCheckText}}</p>
 
       </div>
     </a-modal>
@@ -86,6 +87,7 @@ sharedList,
 sharedDownload,
 } from "@/api/api"
 import moment from 'moment'
+import  storage from 'store'
 
 export default {
   name: 'fileshared',
@@ -99,6 +101,7 @@ export default {
       selectedRowKeys:[],
       selectedNames:[],
 
+      sharedChecked:false,
       sharedToken:"",
       sharedKey:"",
       sharedInfo:{},
@@ -109,12 +112,28 @@ export default {
       sharedModalToken:false,
       sharedModalValue:"",
       sharedTokenCheckFailed:false,
+      sharedTokenCheckText:"",
     }
   },
   mounted () {
-    console.log(this.$route);
+    //console.log(this.$route);
     this.sharedKey = this.$route.params.key
-    if (this.sharedToken === ""){
+    this.sharedToken = storage.get(this.sharedKey)
+    
+    if (this.sharedToken){
+      const args = {key:this.sharedKey,sharedToken:this.sharedToken}
+      sharedInfo(args)
+      .then((ret) => {
+        this.sharedInfo = ret
+        this.tableData = ret.items
+        this.navs.push(ret.root)
+        this.sharedChecked = true
+      })
+      .catch(()=>{
+        storage.remove(this.sharedKey)
+        this.sharedModalToken = true
+      })
+    }else{
       this.sharedModalToken = true
     }
   },
@@ -181,12 +200,15 @@ export default {
         //console.log(ret);
         this.sharedModalToken = false
         this.sharedToken = args.sharedToken
+        storage.set(this.sharedKey,this.sharedToken,12 * 60 *60 * 1000)
         this.sharedInfo = ret
         this.tableData = ret.items
         this.navs.push(ret.root)
+        this.sharedChecked = true
       })
-      .catch(()=>{
+      .catch((err)=>{
         this.sharedTokenCheckFailed = true
+        this.sharedTokenCheckText = err.data.message
       })
     },
     showDownload(){
