@@ -9,6 +9,7 @@ import (
 
 type fileShare struct {
 	Key         string   `json:"key"` // 路由
+	Route       string   `json:"route"`
 	Path        string   `json:"path"`
 	Filename    []string `json:"filename"`    // 分享的文件、文件夹。
 	SharedToken string   `json:"sharedToken"` // 访问密码
@@ -78,6 +79,7 @@ func (this *shareHandler) create(wait *WaitConn, req struct {
 		CreateTime:  now.Unix(),
 		Deadline:    0,
 	}
+	shared.Route = this.getSharedRoute(shared)
 	if req.Deadline > 0 {
 		shared.Deadline = now.Add(time.Hour * 24 * time.Duration(req.Deadline)).Unix()
 	}
@@ -89,7 +91,7 @@ func (this *shareHandler) create(wait *WaitConn, req struct {
 		SharedToken string `json:"sharedToken"`
 		Deadline    int64  `json:"deadline"`
 	}{
-		Route:       this.getSharedRoute(shared),
+		Route:       shared.Route,
 		SharedToken: shared.SharedToken,
 		Deadline:    shared.Deadline,
 	})

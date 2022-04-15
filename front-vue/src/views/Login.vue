@@ -43,7 +43,7 @@ export default {
         ],
       },
       loadingLogin:false,
-      redirect:'/filecloud',
+      redirect:'/',
     }
   },
   mounted(){

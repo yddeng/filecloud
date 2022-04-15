@@ -11,7 +11,7 @@
           :openFileDialogOnClick="uploadFileOpen"
           :showUploadList="false"
           :beforeUpload="handleBeforeUpload"
-          @change="handleChange">
+          >
             <a-dropdown>
               <a-button type="primary" shape="round" icon="upload">上传</a-button>
               <a-menu slot="overlay" @click="handleUploadType">
@@ -58,14 +58,14 @@
               <a href="javascript:;"><a-avatar alt="cloud" style="backgroundColor:#46A3FF" icon="user" /></a>
               <a-menu slot="overlay" style="margin-top:10px">
                 <a-menu-item key="0" @click="()=>{this.showTransfer = true;this.showTransferUploadList = true}">
-                  <a-icon type="swap" :rotate="90"/>&nbsp;&nbsp;传输列表
+                  <a-icon type="swap" style="font-size:14px"  :rotate="90"/>&nbsp;&nbsp;传输列表
                 </a-menu-item>
                 <a-menu-item key="1" @click="gotoSharedList">
-                  <a-icon type="share-alt" />&nbsp;&nbsp;分享列表
+                  <a-icon type="share-alt" style="font-size:14px" />&nbsp;&nbsp;分享列表
                 </a-menu-item>
                 <a-menu-divider />
                 <a-menu-item key="3" @click="userLogout">
-                  <a-icon type="logout" />&nbsp;&nbsp;退出登陆
+                  <a-icon type="logout" style="font-size:14px"  />&nbsp;&nbsp;退出登陆
                 </a-menu-item>
               </a-menu>
             </a-dropdown>
@@ -529,18 +529,6 @@ export default {
         }
       }
       return cnt
-    },
-    handleChange(info) {
-      console.log(info);
-      const status = info.file.status;
-      if (status !== 'uploading') {
-        console.log(info.file, info.fileList);
-      }
-      if (status === 'done') {
-        this.$message.success(`${info.file.name} file uploaded successfully.`);
-      } else if (status === 'error') {
-        this.$message.error(`${info.file.name} file upload failed.`);
-      }
     },
     openRemoveModal(){
       this.removeModalVisible = true

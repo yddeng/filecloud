@@ -85,7 +85,7 @@
 <script>
 import {
 sharedInfo,
-sharedList,
+sharedPath,
 sharedDownload,
 } from "@/api/api"
 import moment from 'moment'
@@ -150,7 +150,7 @@ export default {
       this.selectedNames = names;
     },
     getList(path){
-      sharedList({path:path,key:this.sharedKey,sharedToken:this.sharedToken}).then(res => {
+      sharedPath({path:path,key:this.sharedKey,sharedToken:this.sharedToken}).then(res => {
         this.selectedRowKeys = []
         this.selectedNames = []
         this.tableData = res.items;

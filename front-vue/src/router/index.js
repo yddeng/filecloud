@@ -14,7 +14,7 @@ export default new Router({
   routes: [
     {
       path: '/',
-      redirect: '/filecloud/login',
+      redirect: '/filecloud',
     },
     {
       name:'filecloud',
