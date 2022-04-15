@@ -4,15 +4,12 @@
     <div v-else>
     <div id="header">
       <div id="header-title">
-        <a-row justify="space-between" type="flex">
-          <a-col style="font-size:20px;">
-            <a-icon type="appstore" theme="twoTone" /> &nbsp; <span>{{this.sharedInfo.name}}</span>
-          </a-col>
-          <a-col  style="margin-right:40px">
-            <a-button icon="download" :disabled="!showDownload()" @click="handleDownload">下载</a-button>
-          </a-col>
-        </a-row>
-        
+        <template v-if="!showDownload()">
+          <a-icon type="appstore" theme="twoTone" style="font-size:20px;"/> &nbsp; <span style="font-size:20px;">{{this.sharedInfo.name}}</span>
+        </template>
+        <template v-else>
+          <a-button type="primary" icon="download" shape="round" @click="handleDownload">下载</a-button>
+        </template> 
       </div>
       <div id="header-time">
         <a-icon type="clock-circle" /> <span>{{showCreateTime()}}</span> &nbsp;&nbsp; <span>过期时间：{{showDeadline()}}后</span> 
