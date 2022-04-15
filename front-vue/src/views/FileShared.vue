@@ -46,6 +46,7 @@
     :pagination="false"
     :rowKey="(record,index) => index"
     :row-selection="{selectedRowKeys:selectedRowKeys,onChange:onSelectChange}"
+    :customRow="customRowFunc"
     >
       <template slot="name" slot-scope="text, record">
         <a-icon type="folder" v-if="record.isDir"/>
@@ -148,6 +149,35 @@ export default {
         names.push(v.filename)
       }
       this.selectedNames = names;
+    },
+    customRowFunc(record,index){
+      return {
+        props: {},
+        on: { // 事件
+          click: () => {
+            //console.log(event);
+            // if (event.target.localName === 'a'){
+            //   // 阻止事件
+            //   return
+            // }
+            let selectedIdx = this.selectedRowKeys.indexOf(index)
+            if ( selectedIdx === -1 ){
+              this.selectedRowKeys.push(index)
+              this.selectedNames.push(record.filename)
+            }else{
+              this.selectedRowKeys.splice(selectedIdx,1)
+              this.selectedNames.splice(selectedIdx,1)
+            }
+            //console.log(selectedIdx ,this.selectedRowKeys );
+            
+          },       // 点击行
+          dblclick: () => {},
+          contextmenu: () => {},
+          mouseenter: () => {},  // 鼠标移入行
+          mouseleave: () => {}
+        },
+
+      };
     },
     getList(path){
       sharedPath({path:path,key:this.sharedKey,sharedToken:this.sharedToken}).then(res => {
