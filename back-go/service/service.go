@@ -221,6 +221,7 @@ var (
 
 		"/shared/create": {},
 		"/shared/list":   {},
+		"/shared/cancel": {},
 	}
 )
 
@@ -274,6 +275,7 @@ func initHandler(app *gin.Engine) {
 	shareHandle := new(shareHandler)
 	shareGroup := app.Group("/shared")
 	shareGroup.POST("/create", WarpHandle(shareHandle.create))
+	shareGroup.POST("/cancel", WarpHandle(shareHandle.cancel))
 	shareGroup.POST("/list", WarpHandle(shareHandle.list))
 	//shareGroup.POST("/s/:key", func(ctx *gin.Context) {
 	//	// 动态路由

@@ -35,6 +35,12 @@ export default new Router({
       component: () => import('@/views/FileShared')
     },
     {
+      name:'sharedlist',
+      path: '/shared/list',
+      meta:{title:'我的分享'},
+      component: () => import('@/views/SharedList')
+    },
+    {
       path: '*',
       redirect: '/404',
     },

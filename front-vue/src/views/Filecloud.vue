@@ -41,18 +41,37 @@
           </a-button-group>
         </template>
       </a-col>
-      <a-col style="width:300px;margin-right:100px">
-        <a-row >
-          <a-col :span="10">
+      <a-col style="margin-right:20px">
+        <a-row style="width:400px;">
+          <a-col :span="8">
             {{ resData.diskUsedStr }} / {{ resData.diskTotalStr }}
           </a-col>
-          <a-col :span="13">
+          <a-col :span="10">
             <a-progress v-if="resData.diskUsed < resData.diskTotal" 
             :stroke-color="progressColor(resData.diskUsed / resData.diskTotal * 100)"
             :percent="parseFloat((resData.diskUsed / resData.diskTotal * 100).toFixed(1))" />
             <a-progress v-else :percent="100" stroke-color="red" :show-info="false"/>
           </a-col>
+          <a-col :span="4">&nbsp;</a-col>
+          <a-col :span="2">
+            <a-dropdown  :trigger="['click']">
+              <a href="javascript:;"><a-avatar alt="cloud" style="backgroundColor:#46A3FF" icon="user" /></a>
+              <a-menu slot="overlay" style="margin-top:10px">
+                <a-menu-item key="0" @click="()=>{this.showTransfer = true;this.showTransferUploadList = true}">
+                  <a-icon type="swap" :rotate="90"/>&nbsp;&nbsp;传输列表
+                </a-menu-item>
+                <a-menu-item key="1" @click="gotoSharedList">
+                  <a-icon type="share-alt" />&nbsp;&nbsp;分享列表
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="3" @click="userLogout">
+                  <a-icon type="logout" />&nbsp;&nbsp;退出登陆
+                </a-menu-item>
+              </a-menu>
+            </a-dropdown>
+          </a-col>
         </a-row>
+       
       </a-col>
     </a-row>
   </div>
@@ -246,6 +265,7 @@ downloadFile,
 sharedCreate,
 mvcp} from "@/api/api"
 import SparkMD5 from "spark-md5";
+import  storage from 'store'
 
 export default {
   name: 'filecloud',
@@ -696,6 +716,18 @@ export default {
         this.sharedCopyText = "链接：" + this.sharedRoute + "  提取码：" + this.sharedToken
       })
       
+    },
+    userLogout(){
+      storage.remove("Access-Token");
+      setTimeout(() => {
+        this.$router.push({ path: '/' })
+      }, 500)
+    },
+    gotoSharedList(){
+      const listUrl = this.$router.resolve({
+        name:"sharedlist"
+      })
+      window.open(listUrl.href,'_blank')
     }
   },
 

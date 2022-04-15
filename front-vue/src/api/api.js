@@ -75,6 +75,14 @@ export function downloadFile (parameter) {
   })
 }
 
+export function sharedList (parameter) {
+  return request({
+    url: "shared/list",
+    method: 'post',
+    data: parameter
+  })
+}
+
 export function sharedCreate (parameter) {
   return request({
     url: "shared/create",
@@ -91,7 +99,7 @@ export function sharedInfo (parameter) {
   })
 }
 
-export function sharedList (parameter) {
+export function sharedPath (parameter) {
   return request({
     url: "shared/path",
     method: 'post',
@@ -104,6 +112,14 @@ export function sharedDownload (parameter) {
     url: "shared/download",
     method: 'post',
     responseType:"blob",
+    data: parameter
+  })
+}
+
+export function sharedCancel (parameter) {
+  return request({
+    url: "shared/cancel",
+    method: 'post',
     data: parameter
   })
 }

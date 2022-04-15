@@ -96,6 +96,17 @@ func (this *shareHandler) create(wait *WaitConn, req struct {
 
 }
 
+func (this *shareHandler) cancel(wait *WaitConn, req struct {
+	Keys []string `json:"keys"`
+}) {
+	logger.Infof("%s %v", wait.GetRoute(), req)
+	defer func() { wait.Done() }()
+
+	for _, key := range req.Keys {
+		delete(fileShared, key)
+	}
+}
+
 func (*shareHandler) checkShared(key, token string) (*fileShare, error) {
 	shared, ok := fileShared[key]
 	if !ok || (shared.Deadline != 0 && time.Now().Unix() > shared.Deadline) {

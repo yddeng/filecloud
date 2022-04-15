@@ -43,7 +43,13 @@ export default {
         ],
       },
       loadingLogin:false,
-      
+      redirect:'/filecloud',
+    }
+  },
+  mounted(){
+    //console.log(this.$route);
+    if (this.$route.query.redirect){
+      this.redirect = this.$route.query.redirect
     }
   },
   methods: {
@@ -55,7 +61,7 @@ export default {
             storage.set("Access-Token", ret.token, 8 * 60 * 60 * 1000)
             setTimeout(() => {
               this.loadingLogin = false
-              this.$router.push({ name: 'filecloud' })
+              this.$router.push({ path: this.redirect })
             }, 500)
           }).catch(() => {
             this.loadingLogin = false
