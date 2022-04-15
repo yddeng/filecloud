@@ -14,12 +14,13 @@
 
 ## 页面展示
 
+文件上传
 ![文件上传](assets/upload.png)
-
+文件移动、拷贝
 ![文件移动](assets/move.png)
-
+分享
 ![文件分享](assets/shared.png)
-
+已分享列表
 ![分享列表](assets/shared_list.png)
 
 
@@ -40,6 +41,8 @@
 ## 链接分享
 
 选择同一路径下多个文件、文件夹进行分享。后端生成一条访问链接及提取码。类似百度网盘
+
+`链接：http://127.0.0.1:9987/shared/s/ODWA8WRPH9ZfWLea  提取码：EsRr`
 
 说明： 后端仅缓存分享的路径及选择的文件，不做源文件的移动拷贝等。存在分享后又移除了分享的文件，
 用户能正常访问链接，但不会展示该文件。
@@ -69,9 +72,9 @@ SaveFileMultiple 文件是否保存为多份。
 
 ## 启动
 
-前端： vue4.5.15 + antd1.7.8
+前端： vue4.5.15 + [antd.1x](https://1x.antdv.com/docs/vue/introduce-cn/)
 
-后端： go1.17.7 + gin 
+后端： go1.17.7 + [gin](https://github.com/gin-gonic/gin)
 
 ### 前端项目
 

@@ -272,8 +272,8 @@ export default {
   data () {
     return {
       columns:[
-        {title:'文件名',dataIndex: 'filename',width:'60%',scopedSlots: { customRender: 'name' }},
-        {title:'大小',dataIndex: 'size'},
+        {title:'文件名',dataIndex: 'filename',width:'55%',scopedSlots: { customRender: 'name' }},
+        {title:'大小',dataIndex: 'size',width:'20%',},
         {title:'修改时间',dataIndex: 'date'},
       ],
       selectedRowKeys:[],

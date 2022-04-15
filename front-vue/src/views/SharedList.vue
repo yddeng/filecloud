@@ -43,8 +43,8 @@ export default {
   data () {
     return {
       columns:[
-        {title:'文件',width:'50%',scopedSlots: { customRender: 'name' }},
-        {title:'分享时间',dataIndex: 'createTime', customRender: (text) => moment.unix(text).format('YYYY-MM-DD HH:mm:ss')},
+        {title:'文件',width:'45%',scopedSlots: { customRender: 'name' }},
+        {title:'分享时间',width:'20%',dataIndex: 'createTime', customRender: (text) => moment.unix(text).format('YYYY-MM-DD HH:mm:ss')},
         {title:'状态', width:'15%',scopedSlots: { customRender: 'status' }},
         {title:'浏览次数',dataIndex: 'looked'},
       ],
