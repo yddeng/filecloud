@@ -267,6 +267,7 @@ sharedCreate,
 mvcp} from "@/api/api"
 import SparkMD5 from "spark-md5";
 import  storage from 'store'
+import {makeSharedLink} from "@/utils/common"
 
 export default {
   name: 'filecloud',
@@ -349,10 +350,10 @@ export default {
         on: { // 事件
           click: () => {
             //console.log(event);
-            // if (event.target.localName === 'a'){
-            //   // 阻止事件
-            //   return
-            // }
+            if ((this.addFolder && index === 0) || (this.renameIndex !== -1 && this.renameIndex === index)){
+              // 阻止事件 添加的目录和正在重命名的目录
+              return
+            }
             let selectedIdx = this.selectedRowKeys.indexOf(index)
             if ( selectedIdx === -1 ){
               this.selectedRowKeys.push(index)
@@ -731,14 +732,14 @@ export default {
         this.sharedRoute = ret.route;
         this.sharedToken = ret.sharedToken;
         this.sharedDeadline = ret.deadline;
-        this.sharedCopyText = "链接: " + this.sharedRoute + "  提取码: " + this.sharedToken
+        this.sharedCopyText = makeSharedLink(this.sharedRoute, this.sharedToken)
       })
       
     },
     userLogout(){
       storage.remove("Access-Token");
       setTimeout(() => {
-        this.$router.push({ path: '/' })
+        this.$router.push({ name: 'login' })
       }, 500)
     },
     gotoSharedList(){

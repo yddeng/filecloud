@@ -48,6 +48,7 @@
 <script>
 import moment from 'moment'
 import {sharedList,sharedCancel} from "@/api/api"
+import {makeSharedLink} from "@/utils/common"
 
 export default {
   name: 'sharedlist',
@@ -80,7 +81,7 @@ export default {
         // 分享链接
         for (let record of this.tableData){
           if (record.key === this.selectedRowKeys[0]){
-            this.sharedCopyText = "链接: " + record.route + "  提取码: " + record.sharedToken
+            this.sharedCopyText =  makeSharedLink(record.route, record.sharedToken)
             break
           }
         }
@@ -109,7 +110,7 @@ export default {
           contextmenu: () => {},
           mouseenter: () => {
             this.hoverKey = record.key
-            this.hoverCopyText = "链接: " + record.route + "  提取码: " + record.sharedToken
+            this.hoverCopyText = makeSharedLink(record.route, record.sharedToken)
           },  // 鼠标移入行
           mouseleave: () => {this.hoverKey = ''}
         },
