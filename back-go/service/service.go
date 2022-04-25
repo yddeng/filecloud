@@ -45,6 +45,11 @@ func Launch() {
 		ctx.Next()
 	})
 
+	if config.StaticFS {
+		// 静态资源浏览
+		app.StaticFS("/static", gin.Dir(config.FilePath, true))
+	}
+
 	// 前端
 	if config.WebIndex != "" {
 		app.Use(static.Serve("/", static.LocalFile(config.WebIndex, false)))

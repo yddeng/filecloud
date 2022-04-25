@@ -1,6 +1,7 @@
 WebAddr   = "127.0.0.1:9987"            # web 地址
 WebIndex  = "../../front-vue/dist"      # web html目录
 FilePath  = "cloud"                     # 文件存放目录
+StaticFS  = true                        # 开启静态资源浏览，路径 /static。
 SaveFileMultiple = true                 # 文件是否保存为多份
 FileDiskTotal    = 50                   # 配置的网盘容量，单位 M
 Username         = "yddeng"             # 登陆用户名

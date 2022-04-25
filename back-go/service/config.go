@@ -7,6 +7,7 @@ import (
 type Config struct {
 	WebAddr          string `toml:"WebAddr"`
 	WebIndex         string `toml:"WebIndex"`
+	StaticFS         bool   `json:"staticFS"`
 	FilePath         string `toml:"FilePath"`
 	FileDiskTotal    uint64 `toml:"FileDiskTotal"`
 	SaveFileMultiple bool   `toml:"SaveFileMultiple"`
