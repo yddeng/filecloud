@@ -1,13 +1,12 @@
 import axios from 'axios'
 import { VueAxios } from './axios'
 import message from 'ant-design-vue/es/message'
-import { target } from '@/config/'
 import storage from 'store'
 
 // 创建 axios 实例
 const request = axios.create({
   // API 请求的默认前缀
-  baseURL: target,
+  baseURL: window.g.baseUrl,
   timeout: 6000 // 请求超时时间
 })
 
