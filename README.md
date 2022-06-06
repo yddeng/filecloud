@@ -78,17 +78,20 @@ SaveFileMultiple 文件是否保存为多份。
 
 ### 前端项目
 
+`已经在 dist 中打包了前端项目，只需要更改 dist/config.js 中 baseUrl 即可(与后端webAddr 一致)`
+
+以下是编译打包流程
+
 切换到 `front-vue` 目录
 
 安装依赖 `yarn install `
 
-更改 `src/public/config.js` 第1行 `baseUrl : 'http://127.0.0.1:9987'` 地址 
+更改 `src/public/config.js` 第2行 `baseUrl : 'http://127.0.0.1:9987'` 地址 
 
 运行 `yarn run serve `
 
 打包 `yarn build` , 运行后会在`front-vue`目录生成 `dist` 文件夹，里面就是构建打包好的文件
 
-`已经在 dist 中打包了前端项目，只需要更改 dist/config.js 中 baseUrl 即可(与后端webAddr 一致)`
 
 ### 后端项目
 
